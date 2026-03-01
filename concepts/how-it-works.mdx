@@ -1,0 +1,188 @@
+---
+title: "How It Works"
+description: "Understanding the PPP formula, Price Level Ratio, and World Bank data"
+---
+
+## Overview
+
+The PPP library calculates fair, localized pricing by adjusting a base USD price according to a country's purchasing power. This ensures that your product remains affordable and accessible across different economies.
+
+## The Price Level Ratio
+
+At the core of PPP calculations is the **Price Level Ratio** - a measurement of how expensive goods and services are in a country compared to the United States.
+
+The library uses the World Bank's **"Price Level Ratio of PPP conversion factor (GDP) to market exchange rate"** indicator (code: `PA.NUS.PPPC.RF`).
+
+### Understanding the Ratio
+
+The Price Level Ratio tells you how much purchasing power a dollar has in different countries:
+
+- **`~0.29` (Sri Lanka)**: Goods cost approximately 29% of US prices
+- **`1.0` (United States)**: The baseline - goods cost 100% of US prices
+- **`>1.0` (Switzerland: 1.08)**: Goods cost more than in the US
+
+<Info>
+You can retrieve the raw Price Level Ratio for any country using the `ppp.factor()` method:
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+console.log(ppp.factor('LK'));  // 0.28885598326474304 (Sri Lanka)
+console.log(ppp.factor('US'));  // 1 (United States)
+console.log(ppp.factor('CH'));  // 1.077727161298933 (Switzerland)
+```
+</Info>
+
+## The PPP Formula
+
+The library applies a two-step calculation to determine the fair price:
+
+### Step 1: Apply Smoothing
+
+```javascript
+adjustedFactor = factor + (1 - factor) * smoothing
+```
+
+The smoothing parameter (default: 0.2) normalizes the raw PPP factor to prevent prices from being too aggressive. See the [Smoothing](/concepts/smoothing) page for details.
+
+### Step 2: Calculate Final Price
+
+```javascript
+finalPrice = originalPrice * adjustedFactor
+```
+
+The adjusted factor is multiplied by your original USD price to get the localized price.
+
+### Complete Example
+
+Let's calculate the fair price for a **$100 product** in **India** (factor: 0.2415) with default smoothing (0.2):
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+// Step 1: Get the Price Level Ratio
+const factor = ppp.factor('IN');  // 0.2414642718807555
+
+// Step 2: Apply smoothing (0.2 default)
+const smoothing = 0.2;
+const adjustedFactor = factor + (1 - factor) * smoothing;
+// adjustedFactor = 0.2415 + (1 - 0.2415) * 0.2
+// adjustedFactor = 0.2415 + 0.1517 = 0.3932
+
+// Step 3: Calculate final price
+const finalPrice = 100 * adjustedFactor;  // $39.32
+
+// Or simply:
+console.log(ppp(100, 'IN'));  // 39.31714318469772
+```
+
+<Note>
+With no smoothing (0), the price would be **$24.15** (very aggressive discount). With maximum smoothing (1), the price would remain **$100** (no discount).
+</Note>
+
+## World Bank Data
+
+The library includes PPP conversion factors from the World Bank for 200+ countries and territories. The data is embedded in `data.json` and includes both 2-letter and 3-letter ISO country codes.
+
+### Data Structure
+
+The data is stored as a simple key-value mapping:
+
+```json
+{
+  "USA": 1,
+  "US": 1,
+  "LKA": 0.28885598326474304,
+  "LK": 0.28885598326474304,
+  "IND": 0.2414642718807555,
+  "IN": 0.2414642718807555,
+  "CHE": 1.077727161298933,
+  "CH": 1.077727161298933
+}
+```
+
+Each country has two entries:
+- **3-letter code** (ISO 3166-1 alpha-3): `USA`, `LKA`, `IND`, `CHE`
+- **2-letter code** (ISO 3166-1 alpha-2): `US`, `LK`, `IN`, `CH`
+
+### Country Code Lookup
+
+The library normalizes all country codes to uppercase, so both `'us'` and `'US'` work:
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+// All of these work:
+console.log(ppp(10, 'US'));   // 10 (United States)
+console.log(ppp(10, 'us'));   // 10 (case-insensitive)
+console.log(ppp(10, 'USA'));  // 10 (3-letter code)
+```
+
+<Warning>
+If an invalid country code is provided, the function returns `null`:
+
+```javascript
+console.log(ppp(10, 'INVALID'));  // null
+console.log(ppp.factor('XYZ'));   // null
+```
+</Warning>
+
+## Real-World Examples
+
+### Example 1: SaaS Subscription Pricing
+
+A SaaS product costs **$49/month** in the US. Let's calculate fair prices for different markets:
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+const basePrice = 49;
+
+// Nigeria (factor: 0.119) - Low purchasing power
+console.log(ppp(basePrice, 'NG', 0.2, 'pretty'));  // 14.99
+
+// India (factor: 0.241) - Lower-middle income
+console.log(ppp(basePrice, 'IN', 0.2, 'pretty'));  // 19.99
+
+// Poland (factor: 0.490) - Upper-middle income
+console.log(ppp(basePrice, 'PL', 0.2, 'pretty'));  // 29.99
+
+// United States (factor: 1.0) - Baseline
+console.log(ppp(basePrice, 'US', 0.2, 'pretty'));  // 49
+
+// Switzerland (factor: 1.078) - High cost of living
+console.log(ppp(basePrice, 'CH', 0.2, 'pretty'));  // 55
+```
+
+### Example 2: Digital Product Pricing
+
+An ebook costs **$29** in the US:
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+const ebookPrice = 29;
+
+// Egypt (factor: 0.175)
+console.log(ppp(ebookPrice, 'EG', 0.2, 'currency'));  // 12.27
+
+// Brazil (factor: 0.462)
+console.log(ppp(ebookPrice, 'BR', 0.2, 'currency'));  // 16.75
+
+// United Kingdom (factor: 0.849)
+console.log(ppp(ebookPrice, 'GB', 0.2, 'currency'));  // 27.99
+```
+
+## Why This Matters
+
+Charging the same price globally ignores vast economic differences:
+
+- **$10 in the US**: A quick lunch
+- **$10 in Sri Lanka**: Could be a day's wage
+- **$10 in Switzerland**: Less than a coffee
+
+By using PPP-adjusted pricing, you make your products accessible to global markets while maintaining fair value across different economies.
+
+<Tip>
+The default smoothing value of **0.2** provides a balanced approach that offers meaningful discounts without being overly aggressive. Adjust this value based on your business model and target markets.
+</Tip>

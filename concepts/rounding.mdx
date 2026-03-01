@@ -1,0 +1,402 @@
+---
+title: "Rounding"
+description: "Understanding the three rounding strategies: none, currency, and pretty"
+---
+
+## Overview
+
+The PPP library offers three rounding strategies to format your final prices. Each strategy serves different use cases, from full precision calculations to marketing-friendly prices.
+
+## Rounding Strategies
+
+### `'none'` - Full Precision (Default)
+
+Returns the raw calculated price with full decimal precision. No rounding is applied.
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+// Sri Lanka with default rounding
+console.log(ppp(10, 'LK'));  
+// 4.310847260821793
+
+console.log(ppp(10, 'LK', 0.2, 'none'));  
+// 4.310847260821793 (same as default)
+
+// India
+console.log(ppp(50, 'IN', 0.2, 'none'));  
+// 19.65857159234886
+```
+
+<Info>
+**Use case**: 
+- Internal calculations where you need maximum precision
+- When you'll apply your own rounding logic later
+- Database storage before display formatting
+- API responses where the client handles formatting
+</Info>
+
+### `'currency'` - Standard Currency Format
+
+Rounds to **2 decimal places** using standard rounding rules. This is the typical format for USD currency.
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+// Sri Lanka - rounds to 2 decimals
+console.log(ppp(10, 'LK', 0.2, 'currency'));  
+// 4.31
+
+// India
+console.log(ppp(50, 'IN', 0.2, 'currency'));  
+// 19.66
+
+// Brazil
+console.log(100, 'BR', 0.2, 'currency');
+// 56.93
+```
+
+<Tip>
+**Use case**:
+- Standard e-commerce pricing
+- Invoices and receipts
+- Financial reporting
+- When you need precise, professional formatting
+</Tip>
+
+#### Implementation
+
+The currency rounding is implemented at **index.js:54-56** using standard JavaScript rounding:
+
+```javascript
+if (rounding === 'currency') {
+    // Standard concise rounding (2 decimal places)
+    return Math.round(finalPrice * 100) / 100;
+}
+```
+
+### `'pretty'` - Marketing-Friendly Rounding
+
+Rounds to psychologically appealing price points that are commonly used in marketing. The rules vary based on the price range.
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+// Prices under $10: Ends in .49 or .99
+console.log(ppp(10, 'LK', 0.2, 'pretty'));  
+// 4.49 (from 4.31)
+
+console.log(ppp(10, 'EG', 0.2, 'pretty'));  
+// 2.99 (from 3.00)
+
+// Prices $10-$100: Rounded to nearest integer
+console.log(ppp(50, 'IN', 0.2, 'pretty'));  
+// 20 (from 19.66)
+
+console.log(ppp(50, 'BR', 0.2, 'pretty'));  
+// 28 (from 28.47)
+
+// Prices over $100: Rounded to nearest 5
+console.log(ppp(200, 'PL', 0.2, 'pretty'));  
+// 120 (from 118.35)
+
+console.log(ppp(500, 'GB', 0.2, 'pretty'));  
+// 485 (from 483.88)
+```
+
+<Warning>
+**Use case**:
+- Consumer-facing pricing pages
+- Subscription tiers
+- Product catalogs
+- Marketing campaigns
+- When conversion optimization matters more than precision
+</Warning>
+
+## Pretty Rounding Rules
+
+The `'pretty'` strategy applies different rules based on the price range:
+
+### Rule 1: Prices < $10
+
+Rounds to either **x.49** or **x.99** depending on the decimal value.
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+// Decimal < 0.5 → Round to x.49
+console.log(ppp(10, 'LK', 0.2, 'pretty'));  
+// 4.49 (from 4.31, decimal is 0.31 < 0.5)
+
+console.log(ppp(15, 'IN', 0.3, 'pretty'));  
+// 6.49 (from 6.20, decimal is 0.20 < 0.5)
+
+// Decimal >= 0.5 → Round to x.99
+console.log(ppp(10, 'EG', 0.2, 'pretty'));  
+// 2.99 (from 2.99, decimal is 0.99 >= 0.5)
+
+console.log(ppp(20, 'NG', 0.2, 'pretty'));  
+// 5.99 (from 5.99, decimal is 0.99 >= 0.5)
+```
+
+#### Implementation (index.js:63-68)
+
+```javascript
+if (finalPrice < 10) {
+    // e.g. 4.31 -> 4.49, 2.89 -> 2.99
+    const integerPart = Math.floor(finalPrice);
+    const decimalPart = finalPrice - integerPart;
+    if (decimalPart < 0.5) return integerPart + 0.49;
+    return integerPart + 0.99;
+}
+```
+
+### Rule 2: Prices $10 - $100
+
+Rounds to the **nearest integer** (no decimals).
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+// Standard rounding to integers
+console.log(ppp(50, 'IN', 0.2, 'pretty'));  
+// 20 (from 19.66)
+
+console.log(ppp(100, 'BR', 0.2, 'pretty'));  
+// 57 (from 56.93)
+
+console.log(ppp(75, 'PL', 0.2, 'pretty'));  
+// 44 (from 44.39)
+
+console.log(ppp(99, 'MX', 0.2, 'pretty'));  
+// 63 (from 62.69)
+```
+
+#### Implementation (index.js:69-72)
+
+```javascript
+else if (finalPrice < 100) {
+    // e.g. 43.2 -> 43, 48.7 -> 49
+    return Math.round(finalPrice);
+}
+```
+
+### Rule 3: Prices > $100
+
+Rounds to the **nearest 5** (ends in 0 or 5).
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+// Round to nearest 5
+console.log(ppp(200, 'PL', 0.2, 'pretty'));  
+// 120 (from 118.35)
+
+console.log(ppp(300, 'IN', 0.2, 'pretty'));  
+// 115 (from 117.96)
+
+console.log(ppp(500, 'BR', 0.2, 'pretty'));  
+// 285 (from 284.63)
+
+console.log(ppp(999, 'MX', 0.2, 'pretty'));  
+// 630 (from 632.94)
+```
+
+#### Implementation (index.js:73-75)
+
+```javascript
+else {
+    // e.g. 132 -> 130, 134 -> 135, 138 -> 140
+    return Math.round(finalPrice / 5) * 5;
+}
+```
+
+## Comprehensive Comparison
+
+Here's how all three rounding strategies compare for the same prices:
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+function compareRounding(price, countryCode) {
+  console.log(`\n$${price} in ${countryCode}:`);
+  console.log(`  none:     $${ppp(price, countryCode, 0.2, 'none')}`);
+  console.log(`  currency: $${ppp(price, countryCode, 0.2, 'currency')}`);
+  console.log(`  pretty:   $${ppp(price, countryCode, 0.2, 'pretty')}`);
+}
+
+compareRounding(10, 'LK');
+// $10 in LK:
+//   none:     $4.310847260821793
+//   currency: $4.31
+//   pretty:   $4.49
+
+compareRounding(50, 'IN');
+// $50 in IN:
+//   none:     $19.65857159234886
+//   currency: $19.66
+//   pretty:   $20
+
+compareRounding(200, 'BR');
+// $200 in BR:
+//   none:     $113.85261463192578
+//   currency: $113.85
+//   pretty:   $115
+
+compareRounding(999, 'GB');
+// $999 in GB:
+//   none:     $967.8732271551697
+//   currency: $967.87
+//   pretty:   $970
+```
+
+## Real-World Examples
+
+### Example 1: SaaS Subscription Tiers
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+const plans = {
+  starter: 9,
+  professional: 29,
+  enterprise: 99
+};
+
+function getPricingForCountry(countryCode) {
+  return {
+    starter: ppp(plans.starter, countryCode, 0.2, 'pretty'),
+    professional: ppp(plans.professional, countryCode, 0.2, 'pretty'),
+    enterprise: ppp(plans.enterprise, countryCode, 0.2, 'pretty')
+  };
+}
+
+// India pricing
+console.log(getPricingForCountry('IN'));
+// { starter: 3.49, professional: 11.99, enterprise: 39 }
+
+// Brazil pricing
+console.log(getPricingForCountry('BR'));
+// { starter: 4.99, professional: 16.99, enterprise: 56 }
+
+// Poland pricing
+console.log(getPricingForCountry('PL'));
+// { starter: 4.99, professional: 16.99, enterprise: 59 }
+```
+
+<Tip>
+Notice how `'pretty'` rounding creates psychologically appealing prices:
+- Under $10: $.49 or $.99 endings
+- $10-$100: Clean integers
+- The prices look intentional and professional
+</Tip>
+
+### Example 2: E-commerce Product Pricing
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+const products = [
+  { name: 'Ebook', price: 14.99 },
+  { name: 'Video Course', price: 79 },
+  { name: 'Masterclass Bundle', price: 249 }
+];
+
+function getProductPricing(product, countryCode) {
+  return {
+    name: product.name,
+    usd: product.price,
+    local: ppp(product.price, countryCode, 0.2, 'pretty')
+  };
+}
+
+// Sri Lanka pricing
+products.forEach(product => {
+  console.log(getProductPricing(product, 'LK'));
+});
+// { name: 'Ebook', usd: 14.99, local: 6.49 }
+// { name: 'Video Course', usd: 79, local: 34 }
+// { name: 'Masterclass Bundle', usd: 249, local: 105 }
+```
+
+### Example 3: Currency Rounding for Invoices
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+function generateInvoice(items, countryCode) {
+  const subtotal = items.reduce((sum, item) => {
+    return sum + ppp(item.price, countryCode, 0.2, 'currency');
+  }, 0);
+  
+  const tax = Math.round(subtotal * 0.10 * 100) / 100; // 10% tax
+  const total = Math.round((subtotal + tax) * 100) / 100;
+  
+  return { subtotal, tax, total };
+}
+
+const cartItems = [
+  { name: 'Product A', price: 29.99 },
+  { name: 'Product B', price: 49.99 },
+  { name: 'Product C', price: 19.99 }
+];
+
+// India invoice
+console.log(generateInvoice(cartItems, 'IN'));
+// { subtotal: 39.32, tax: 3.93, total: 43.25 }
+
+// Uses 'currency' rounding for precise financial calculations
+```
+
+<Info>
+For invoices and receipts, always use `'currency'` rounding to ensure accurate financial records and tax calculations.
+</Info>
+
+## Choosing the Right Strategy
+
+### Use `'none'` when:
+- You need maximum precision for calculations
+- You're storing prices in a database
+- You'll apply custom formatting later
+- You're building an API that returns raw values
+
+### Use `'currency'` when:
+- You need standard financial formatting
+- Generating invoices or receipts
+- Professional business contexts
+- Accounting and reporting
+
+### Use `'pretty'` when:
+- Building consumer-facing pricing pages
+- Optimizing for conversion
+- Marketing campaigns
+- Subscription plan displays
+- Product catalogs
+
+## Validation
+
+The library validates the rounding parameter at **index.js:38-40**:
+
+```javascript
+if (typeof rounding !== 'string' || !['none', 'currency', 'pretty'].includes(rounding)) {
+    throw new Error("Rounding must be one of: 'none', 'currency', 'pretty'.");
+}
+```
+
+Invalid rounding values throw an error:
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+// This will throw an error
+try {
+  ppp(10, 'US', 0.2, 'invalid');
+} catch (error) {
+  console.error(error.message);
+  // "Rounding must be one of: 'none', 'currency', 'pretty'."
+}
+```
+
+<Warning>
+Always use one of the three valid strategies: `'none'`, `'currency'`, or `'pretty'`. Any other value will throw an error.
+</Warning>

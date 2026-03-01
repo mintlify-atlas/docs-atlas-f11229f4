@@ -1,0 +1,190 @@
+---
+title: 'ppp()'
+description: 'Calculate PPP-adjusted prices for any country'
+---
+
+## Function Signature
+
+```typescript
+function ppp(
+    originalPrice: number,
+    countryCode: string,
+    smoothing?: number,
+    rounding?: RoundingStrategy
+): number | null
+```
+
+## Description
+
+Calculates the Purchasing Power Parity (PPP) adjusted fair price in USD for a given country. This function applies a country-specific price level ratio to adjust your pricing based on local purchasing power, with optional smoothing and rounding strategies.
+
+## Parameters
+
+<ParamField path="originalPrice" type="number" required>
+  The base price in USD (International Dollars). Must be a non-negative number.
+  
+  **Validation**: Throws an error if not a number or if negative.
+</ParamField>
+
+<ParamField path="countryCode" type="string" required>
+  The ISO country code (2-letter or 3-letter). Case-insensitive.
+  
+  **Examples**: `"US"`, `"GB"`, `"IND"`, `"br"` (automatically converted to uppercase)
+  
+  **Validation**: Throws an error if not a string.
+</ParamField>
+
+<ParamField path="smoothing" type="number" default="0.2">
+  A value between 0 and 1 to normalize the price discount.
+  
+  - `0` = Raw PPP (Theoretical / Maximum Discount)
+  - `0.2` = Default (Balanced Discount)
+  - `1` = No adjustment (Original Price)
+  
+  **Validation**: Must be a number between 0 and 1 (inclusive). Throws an error if outside this range.
+</ParamField>
+
+<ParamField path="rounding" type="RoundingStrategy" default="'none'">
+  Rounding strategy for the final price. Must be one of:
+  
+  - `'none'` = Full precision (no rounding)
+  - `'currency'` = Standard currency rounding (2 decimal places)
+  - `'pretty'` = Marketing-friendly rounding:
+    - **< $10**: Round to x.99 or x.49 (e.g., 4.31 → 4.49, 7.89 → 7.99)
+    - **$10 - $100**: Round to nearest whole number (e.g., 43.2 → 45, 48.7 → 49)
+    - **> $100**: Round to nearest 5 (e.g., 132 → 130, 138 → 140)
+  
+  **Validation**: Throws an error if not one of the valid strategies.
+</ParamField>
+
+## Return Value
+
+<ResponseField name="return" type="number | null">
+  The PPP-adjusted price in USD.
+  
+  Returns `null` if:
+  - The country code is not found in the database
+  - The country code is invalid (though validation errors are thrown first)
+</ResponseField>
+
+## How It Works
+
+The function applies the following formula:
+
+```javascript
+adjustedFactor = factor + (1 - factor) * smoothing
+finalPrice = originalPrice * adjustedFactor
+```
+
+Where `factor` is the country's Price Level Ratio from the World Bank data.
+
+## Examples
+
+<Tabs>
+  <Tab title="Basic Usage">
+    ```javascript
+    import ppp from 'ppp';
+
+    // $29 product for India with default smoothing
+    const price = ppp(29, 'IN');
+    console.log(price); // ~9.87 (India has ~0.24 factor)
+
+    // Same product for Brazil
+    const brazilPrice = ppp(29, 'BR');
+    console.log(brazilPrice); // ~15.95 (Brazil has ~0.51 factor)
+    ```
+  </Tab>
+  
+  <Tab title="Currency Rounding">
+    ```javascript
+    import ppp from 'ppp';
+
+    // Round to 2 decimal places for payment processing
+    const price = ppp(29, 'IN', 0.2, 'currency');
+    console.log(price); // 9.87
+
+    const exactPrice = ppp(29, 'IN', 0.2, 'none');
+    console.log(exactPrice); // 9.872 (full precision)
+    ```
+  </Tab>
+  
+  <Tab title="Pretty Rounding">
+    ```javascript
+    import ppp from 'ppp';
+
+    // Marketing-friendly pricing
+    const lowPrice = ppp(9, 'IN', 0.2, 'pretty');
+    console.log(lowPrice); // 2.99 (< $10, rounds to x.99/x.49)
+
+    const midPrice = ppp(50, 'IN', 0.2, 'pretty');
+    console.log(midPrice); // 17 (10-100, rounds to whole number)
+
+    const highPrice = ppp(200, 'IN', 0.2, 'pretty');
+    console.log(highPrice); // 70 (> 100, rounds to nearest 5)
+    ```
+  </Tab>
+  
+  <Tab title="Smoothing Variations">
+    ```javascript
+    import ppp from 'ppp';
+
+    const basePrice = 29;
+    const country = 'IN';
+
+    // Maximum discount (raw PPP)
+    const maxDiscount = ppp(basePrice, country, 0);
+    console.log(maxDiscount); // ~6.96 (29 * 0.24)
+
+    // Balanced discount (default)
+    const balanced = ppp(basePrice, country, 0.2);
+    console.log(balanced); // ~9.87
+
+    // Minimal discount
+    const minimal = ppp(basePrice, country, 0.8);
+    console.log(minimal); // ~25.30
+
+    // No discount
+    const noDiscount = ppp(basePrice, country, 1);
+    console.log(noDiscount); // 29 (original price)
+    ```
+  </Tab>
+  
+  <Tab title="Error Handling">
+    ```javascript
+    import ppp from 'ppp';
+
+    // Invalid country code returns null
+    const unknown = ppp(29, 'INVALID');
+    console.log(unknown); // null
+
+    // Invalid inputs throw errors
+    try {
+      ppp(-10, 'US'); // Error: Original price must be non-negative
+    } catch (error) {
+      console.error(error.message);
+    }
+
+    try {
+      ppp(29, 'US', 1.5); // Error: Smoothing must be between 0 and 1
+    } catch (error) {
+      console.error(error.message);
+    }
+
+    try {
+      ppp(29, 'US', 0.2, 'round-up'); // Error: Invalid rounding strategy
+    } catch (error) {
+      console.error(error.message);
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Type Definitions
+
+```typescript
+type RoundingStrategy = 'none' | 'currency' | 'pretty';
+```
+
+## Related
+
+- [ppp.factor()](/api/factor-function) - Get the raw PPP factor for a country

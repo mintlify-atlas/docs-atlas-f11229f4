@@ -1,0 +1,509 @@
+---
+title: 'Country Codes'
+description: 'Understanding and using ISO country codes with the PPP package'
+---
+
+## Overview
+
+The PPP package accepts both ISO 3166-1 alpha-2 (2-letter) and alpha-3 (3-letter) country codes. All codes are case-insensitive, making the API flexible and developer-friendly.
+
+## Supported Code Formats
+
+<CardGroup cols={2}>
+  <Card title="2-Letter Codes (Alpha-2)" icon="a">
+    Most common format used globally.
+    
+    Examples: `US`, `IN`, `BR`, `CN`, `DE`
+    
+    Recommended for most use cases.
+  </Card>
+  <Card title="3-Letter Codes (Alpha-3)" icon="b">
+    More explicit and readable format.
+    
+    Examples: `USA`, `IND`, `BRA`, `CHN`, `DEU`
+    
+    Useful when clarity is important.
+  </Card>
+</CardGroup>
+
+## Using Country Codes
+
+### Case Insensitivity
+
+All country codes work regardless of case:
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+// All of these work identically
+const price1 = ppp(29, 'US', 0.2, 'currency');   // Uppercase
+const price2 = ppp(29, 'us', 0.2, 'currency');   // Lowercase
+const price3 = ppp(29, 'Us', 0.2, 'currency');   // Mixed case
+const price4 = ppp(29, 'USA', 0.2, 'currency');  // 3-letter
+const price5 = ppp(29, 'usa', 0.2, 'currency');  // 3-letter lowercase
+
+// All return: 29 (US baseline)
+```
+
+### Interchangeable Formats
+
+Both 2-letter and 3-letter codes work for all countries:
+
+```javascript
+// These are equivalent
+const indiaPriceAlpha2 = ppp(100, 'IN', 0.2, 'currency');
+const indiaPriceAlpha3 = ppp(100, 'IND', 0.2, 'currency');
+
+console.log(indiaPriceAlpha2 === indiaPriceAlpha3); // true
+
+// Get the PPP factor using either code
+const factorAlpha2 = ppp.factor('BR');
+const factorAlpha3 = ppp.factor('BRA');
+
+console.log(factorAlpha2 === factorAlpha3); // true
+```
+
+## Common Country Examples
+
+Here are examples showing both code formats and their PPP factors:
+
+### Major Markets
+
+```javascript
+const MAJOR_MARKETS = [
+  { name: 'United States', alpha2: 'US', alpha3: 'USA', factor: 1.0 },
+  { name: 'China', alpha2: 'CN', alpha3: 'CHN', factor: 0.491 },
+  { name: 'India', alpha2: 'IN', alpha3: 'IND', factor: 0.241 },
+  { name: 'Brazil', alpha2: 'BR', alpha3: 'BRA', factor: 0.462 },
+  { name: 'United Kingdom', alpha2: 'GB', alpha3: 'GBR', factor: 0.849 },
+  { name: 'Germany', alpha2: 'DE', alpha3: 'DEU', factor: 0.759 },
+  { name: 'Japan', alpha2: 'JP', alpha3: 'JPN', factor: 0.624 },
+  { name: 'Canada', alpha2: 'CA', alpha3: 'CAN', factor: 0.840 },
+  { name: 'Australia', alpha2: 'AU', alpha3: 'AUS', factor: 0.896 },
+  { name: 'Mexico', alpha2: 'MX', alpha3: 'MEX', factor: 0.542 }
+];
+
+function showMarketPricing(basePrice) {
+  MAJOR_MARKETS.forEach(market => {
+    const price = ppp(basePrice, market.alpha2, 0.2, 'currency');
+    console.log(`${market.name} (${market.alpha2}): $${price}`);
+  });
+}
+
+showMarketPricing(29); // Show $29 product across markets
+```
+
+### High-Discount Markets
+
+Countries with significant purchasing power differences (PPP factor < 0.3):
+
+```javascript
+const HIGH_DISCOUNT_MARKETS = [
+  { name: 'Nigeria', code: 'NG', factor: 0.119 },
+  { name: 'Egypt', code: 'EG', factor: 0.175 },
+  { name: 'Afghanistan', code: 'AF', factor: 0.188 },
+  { name: 'Burundi', code: 'BI', factor: 0.184 },
+  { name: 'Laos', code: 'LA', factor: 0.217 },
+  { name: 'Myanmar', code: 'MM', factor: 0.227 },
+  { name: 'Sierra Leone', code: 'SL', factor: 0.229 },
+  { name: 'Pakistan', code: 'PK', factor: 0.237 },
+  { name: 'Nepal', code: 'NP', factor: 0.252 },
+  { name: 'Gambia', code: 'GM', factor: 0.251 }
+];
+
+// Show impact of PPP pricing in high-discount markets
+const basePrice = 49;
+HIGH_DISCOUNT_MARKETS.forEach(market => {
+  const pppPrice = ppp(basePrice, market.code, 0.2, 'pretty');
+  const savings = basePrice - pppPrice;
+  const savingsPercent = ((savings / basePrice) * 100).toFixed(0);
+  
+  console.log(
+    `${market.name}: $${pppPrice} (${savingsPercent}% off)`
+  );
+});
+```
+
+<Note>
+These markets offer the greatest opportunity for expanding accessibility. A $49 product becomes $12-18 in these regions with default smoothing.
+</Note>
+
+### Premium Markets
+
+Countries where goods are more expensive than in the US (PPP factor > 1.0):
+
+```javascript
+const PREMIUM_MARKETS = [
+  { name: 'Switzerland', code: 'CH', factor: 1.078 },
+  { name: 'Bermuda', code: 'BM', factor: 1.150 },
+  { name: 'Cayman Islands', code: 'KY', factor: 1.121 },
+  { name: 'Barbados', code: 'BB', factor: 1.069 },
+  { name: 'Tuvalu', code: 'TV', factor: 1.032 },
+  { name: 'Iceland', code: 'IS', factor: 1.028 }
+];
+
+function handlePremiumMarket(basePrice, countryCode) {
+  const factor = ppp.factor(countryCode);
+  
+  if (factor > 1.0) {
+    console.log(`Premium market detected: factor ${factor.toFixed(3)}`);
+    
+    // Most businesses keep base price rather than increasing
+    return basePrice;
+  }
+  
+  return ppp(basePrice, countryCode, 0.2, 'currency');
+}
+
+const swissPrice = handlePremiumMarket(29, 'CH');
+console.log(`Switzerland: $${swissPrice}`); // Returns base price $29
+```
+
+<Tip>
+For countries with PPP factor above 1.0, consider keeping your base USD price rather than applying the increase. Most SaaS products don't charge premium markets more.
+</Tip>
+
+## Regional Examples
+
+### Europe
+
+```javascript
+const EUROPE = {
+  'Western Europe': [
+    { name: 'France', code: 'FR', factor: 0.737 },
+    { name: 'Spain', code: 'ES', factor: 0.608 },
+    { name: 'Italy', code: 'IT', factor: 0.649 },
+    { name: 'Netherlands', code: 'NL', factor: 0.792 },
+    { name: 'Belgium', code: 'BE', factor: 0.762 }
+  ],
+  'Eastern Europe': [
+    { name: 'Poland', code: 'PL', factor: 0.490 },
+    { name: 'Romania', code: 'RO', factor: 0.405 },
+    { name: 'Bulgaria', code: 'BG', factor: 0.417 },
+    { name: 'Hungary', code: 'HU', factor: 0.480 },
+    { name: 'Czech Republic', code: 'CZ', factor: 0.552 }
+  ],
+  'Nordic': [
+    { name: 'Norway', code: 'NO', factor: 0.851 },
+    { name: 'Sweden', code: 'SE', factor: 0.803 },
+    { name: 'Denmark', code: 'DK', factor: 0.878 },
+    { name: 'Finland', code: 'FI', factor: 0.816 }
+  ]
+};
+
+function analyzeEuropeanPricing(basePrice) {
+  Object.entries(EUROPE).forEach(([region, countries]) => {
+    console.log(`\n${region}:`);
+    countries.forEach(c => {
+      const price = ppp(basePrice, c.code, 0.2, 'currency');
+      console.log(`  ${c.name} (${c.code}): $${price}`);
+    });
+  });
+}
+
+analyzeEuropeanPricing(49);
+```
+
+### Asia-Pacific
+
+```javascript
+const ASIA_PACIFIC = [
+  { name: 'Japan', code: 'JP', factor: 0.624 },
+  { name: 'South Korea', code: 'KR', factor: 0.594 },
+  { name: 'Singapore', code: 'SG', factor: 0.602 },
+  { name: 'Hong Kong', code: 'HK', factor: 0.719 },
+  { name: 'Taiwan', code: 'TW', factor: 0.624 }, // Uses alternative code
+  { name: 'Thailand', code: 'TH', factor: 0.297 },
+  { name: 'Malaysia', code: 'MY', factor: 0.306 },
+  { name: 'Indonesia', code: 'ID', factor: 0.299 },
+  { name: 'Philippines', code: 'PH', factor: 0.338 },
+  { name: 'Vietnam', code: 'VN', factor: 0.288 },
+  { name: 'Bangladesh', code: 'BD', factor: 0.269 },
+  { name: 'Sri Lanka', code: 'LK', factor: 0.289 }
+];
+
+// Compare pricing across APAC
+function compareAPACPricing(basePrice) {
+  const results = ASIA_PACIFIC.map(country => ({
+    ...country,
+    price: ppp(basePrice, country.code, 0.2, 'pretty'),
+    discount: Math.round((1 - ppp(basePrice, country.code, 0.2, 'none') / basePrice) * 100)
+  }));
+  
+  // Sort by price (ascending)
+  results.sort((a, b) => a.price - b.price);
+  
+  console.log('APAC Pricing (sorted by final price):');
+  results.forEach(r => {
+    console.log(`${r.name}: $${r.price} (${r.discount}% discount)`);
+  });
+}
+
+compareAPACPricing(79);
+```
+
+### Latin America
+
+```javascript
+const LATIN_AMERICA = [
+  { name: 'Argentina', code: 'AR', factor: 0.459 },
+  { name: 'Brazil', code: 'BR', factor: 0.462 },
+  { name: 'Chile', code: 'CL', factor: 0.462 },
+  { name: 'Colombia', code: 'CO', factor: 0.354 },
+  { name: 'Mexico', code: 'MX', factor: 0.542 },
+  { name: 'Peru', code: 'PE', factor: 0.475 },
+  { name: 'Ecuador', code: 'EC', factor: 0.434 },
+  { name: 'Venezuela', code: 'VE', factor: 0.625 },
+  { name: 'Costa Rica', code: 'CR', factor: 0.598 },
+  { name: 'Panama', code: 'PA', factor: 0.463 }
+];
+```
+
+### Africa
+
+```javascript
+const AFRICA = [
+  { name: 'South Africa', code: 'ZA', factor: 0.405 },
+  { name: 'Nigeria', code: 'NG', factor: 0.119 },
+  { name: 'Egypt', code: 'EG', factor: 0.175 },
+  { name: 'Kenya', code: 'KE', factor: 0.321 },
+  { name: 'Ghana', code: 'GH', factor: 0.298 },
+  { name: 'Morocco', code: 'MA', factor: 0.399 },
+  { name: 'Ethiopia', code: 'ET', factor: 0.345 },
+  { name: 'Tanzania', code: 'TZ', factor: 0.281 },
+  { name: 'Uganda', code: 'UG', factor: 0.329 },
+  { name: 'Rwanda', code: 'RW', factor: 0.269 }
+];
+```
+
+## Finding Country Codes
+
+### From Country Name
+
+```javascript
+// Simple lookup table (partial example)
+const COUNTRY_NAME_TO_CODE = {
+  'united states': 'US',
+  'united kingdom': 'GB',
+  'india': 'IN',
+  'brazil': 'BR',
+  'china': 'CN',
+  'germany': 'DE',
+  'france': 'FR',
+  'japan': 'JP',
+  'canada': 'CA',
+  'australia': 'AU'
+  // ... add more as needed
+};
+
+function getCountryCode(countryName) {
+  const normalized = countryName.toLowerCase().trim();
+  return COUNTRY_NAME_TO_CODE[normalized] || null;
+}
+
+const code = getCountryCode('United Kingdom');
+const price = ppp(29, code, 0.2, 'currency');
+console.log(`UK Price: $${price}`);
+```
+
+### Checking if a Country is Supported
+
+```javascript
+function isCountrySupported(countryCode) {
+  return ppp.factor(countryCode) !== null;
+}
+
+// Test various codes
+const tests = ['US', 'IN', 'INVALID', 'XX', 'BR'];
+tests.forEach(code => {
+  const supported = isCountrySupported(code);
+  console.log(`${code}: ${supported ? 'Supported' : 'Not supported'}`);
+});
+```
+
+### Getting All Supported Countries
+
+```javascript
+function getAllSupportedCountries() {
+  // Read from data.json or maintain a list
+  const allCodes = [
+    { name: 'Afghanistan', alpha2: 'AF', alpha3: 'AFG' },
+    { name: 'Albania', alpha2: 'AL', alpha3: 'ALB' },
+    { name: 'Algeria', alpha2: 'DZ', alpha3: 'DZA' },
+    // ... all countries from data.json
+  ];
+  
+  return allCodes.filter(country => 
+    ppp.factor(country.alpha2) !== null
+  );
+}
+
+const supported = getAllSupportedCountries();
+console.log(`${supported.length} countries supported`);
+```
+
+## Complete Country Reference
+
+The PPP package includes data for 204 countries. Here's a selection organized by PPP factor ranges:
+
+<Accordion title="Very Low PPP (< 0.25) - Maximum Discount Opportunity">
+```javascript
+[
+  { name: 'Nigeria', code: 'NG', factor: 0.119 },
+  { name: 'Egypt', code: 'EG', factor: 0.175 },
+  { name: 'Syria', code: 'SY', factor: 0.182 },
+  { name: 'Burundi', code: 'BI', factor: 0.184 },
+  { name: 'Afghanistan', code: 'AF', factor: 0.188 },
+  { name: 'Laos', code: 'LA', factor: 0.217 },
+  { name: 'Myanmar', code: 'MM', factor: 0.227 },
+  { name: 'Sierra Leone', code: 'SL', factor: 0.229 },
+  { name: 'Bhutan', code: 'BT', factor: 0.236 },
+  { name: 'Pakistan', code: 'PK', factor: 0.237 },
+  { name: 'India', code: 'IN', factor: 0.241 },
+  { name: 'Tajikistan', code: 'TJ', factor: 0.248 }
+]
+```
+</Accordion>
+
+<Accordion title="Low PPP (0.25-0.40) - Significant Discount Potential">
+```javascript
+[
+  { name: 'Belarus', code: 'BY', factor: 0.252 },
+  { name: 'Iran', code: 'IR', factor: 0.261 },
+  { name: 'Angola', code: 'AO', factor: 0.263 },
+  { name: 'Uzbekistan', code: 'UZ', factor: 0.266 },
+  { name: 'Bangladesh', code: 'BD', factor: 0.269 },
+  { name: 'Lebanon', code: 'LB', factor: 0.277 },
+  { name: 'Zambia', code: 'ZM', factor: 0.282 },
+  { name: 'Vietnam', code: 'VN', factor: 0.288 },
+  { name: 'Sri Lanka', code: 'LK', factor: 0.289 },
+  { name: 'Ukraine', code: 'UA', factor: 0.291 },
+  { name: 'Ghana', code: 'GH', factor: 0.298 },
+  { name: 'Indonesia', code: 'ID', factor: 0.299 },
+  { name: 'Thailand', code: 'TH', factor: 0.297 },
+  { name: 'Malaysia', code: 'MY', factor: 0.306 },
+  { name: 'Russia', code: 'RU', factor: 0.314 },
+  { name: 'Kenya', code: 'KE', factor: 0.321 },
+  { name: 'Algeria', code: 'DZ', factor: 0.326 },
+  { name: 'Uganda', code: 'UG', factor: 0.329 },
+  { name: 'Cambodia', code: 'KH', factor: 0.330 },
+  { name: 'Philippines', code: 'PH', factor: 0.338 },
+  { name: 'Turkey', code: 'TR', factor: 0.348 },
+  { name: 'Colombia', code: 'CO', factor: 0.354 },
+  { name: 'Armenia', code: 'AM', factor: 0.375 },
+  { name: 'Morocco', code: 'MA', factor: 0.399 }
+]
+```
+</Accordion>
+
+<Accordion title="Medium PPP (0.40-0.70) - Moderate Adjustments">
+```javascript
+[
+  { name: 'South Africa', code: 'ZA', factor: 0.405 },
+  { name: 'Romania', code: 'RO', factor: 0.405 },
+  { name: 'Bulgaria', code: 'BG', factor: 0.417 },
+  { name: 'Albania', code: 'AL', factor: 0.419 },
+  { name: 'Brazil', code: 'BR', factor: 0.462 },
+  { name: 'Chile', code: 'CL', factor: 0.462 },
+  { name: 'Peru', code: 'PE', factor: 0.475 },
+  { name: 'Hungary', code: 'HU', factor: 0.480 },
+  { name: 'Poland', code: 'PL', factor: 0.490 },
+  { name: 'China', code: 'CN', factor: 0.491 },
+  { name: 'Mexico', code: 'MX', factor: 0.542 },
+  { name: 'Czech Republic', code: 'CZ', factor: 0.552 },
+  { name: 'Portugal', code: 'PT', factor: 0.559 },
+  { name: 'Greece', code: 'GR', factor: 0.558 },
+  { name: 'Costa Rica', code: 'CR', factor: 0.598 },
+  { name: 'Spain', code: 'ES', factor: 0.608 },
+  { name: 'Cyprus', code: 'CY', factor: 0.621 },
+  { name: 'Japan', code: 'JP', factor: 0.624 },
+  { name: 'UAE', code: 'AE', factor: 0.635 },
+  { name: 'Italy', code: 'IT', factor: 0.649 },
+  { name: 'Andorra', code: 'AD', factor: 0.658 }
+]
+```
+</Accordion>
+
+<Accordion title="High PPP (0.70-1.0) - Minor Adjustments">
+```javascript
+[
+  { name: 'Hong Kong', code: 'HK', factor: 0.719 },
+  { name: 'France', code: 'FR', factor: 0.737 },
+  { name: 'Germany', code: 'DE', factor: 0.759 },
+  { name: 'Belgium', code: 'BE', factor: 0.762 },
+  { name: 'Austria', code: 'AT', factor: 0.769 },
+  { name: 'Netherlands', code: 'NL', factor: 0.792 },
+  { name: 'Ireland', code: 'IE', factor: 0.802 },
+  { name: 'Sweden', code: 'SE', factor: 0.803 },
+  { name: 'Finland', code: 'FI', factor: 0.816 },
+  { name: 'Canada', code: 'CA', factor: 0.840 },
+  { name: 'UK', code: 'GB', factor: 0.849 },
+  { name: 'Norway', code: 'NO', factor: 0.851 },
+  { name: 'Denmark', code: 'DK', factor: 0.878 },
+  { name: 'Luxembourg', code: 'LU', factor: 0.883 },
+  { name: 'New Zealand', code: 'NZ', factor: 0.886 },
+  { name: 'Australia', code: 'AU', factor: 0.896 },
+  { name: 'Israel', code: 'IL', factor: 0.947 }
+]
+```
+</Accordion>
+
+<Accordion title="Premium Markets (> 1.0) - More Expensive than US">
+```javascript
+[
+  { name: 'Iceland', code: 'IS', factor: 1.028 },
+  { name: 'Tuvalu', code: 'TV', factor: 1.032 },
+  { name: 'Barbados', code: 'BB', factor: 1.069 },
+  { name: 'Switzerland', code: 'CH', factor: 1.078 },
+  { name: 'Cayman Islands', code: 'KY', factor: 1.121 },
+  { name: 'Bermuda', code: 'BM', factor: 1.150 }
+]
+```
+</Accordion>
+
+<Note>
+All PPP factors are based on World Bank data (Indicator: PA.NUS.PPPC.RF) representing the Price Level Ratio of PPP conversion factor to market exchange rate.
+</Note>
+
+## Validation and Error Handling
+
+```javascript
+function validateAndPrice(basePrice, countryCode) {
+  // Normalize input
+  const normalizedCode = countryCode.trim().toUpperCase();
+  
+  // Check if country is supported
+  if (!ppp.factor(normalizedCode)) {
+    console.warn(`Country code '${countryCode}' not found in PPP data`);
+    return {
+      success: false,
+      error: 'INVALID_COUNTRY_CODE',
+      fallbackPrice: basePrice
+    };
+  }
+  
+  // Calculate price
+  const adjustedPrice = ppp(basePrice, normalizedCode, 0.2, 'currency');
+  
+  return {
+    success: true,
+    countryCode: normalizedCode,
+    basePrice: basePrice,
+    adjustedPrice: adjustedPrice,
+    factor: ppp.factor(normalizedCode),
+    discount: ((1 - adjustedPrice / basePrice) * 100).toFixed(1) + '%'
+  };
+}
+
+// Usage
+const result = validateAndPrice(49, 'br');
+if (result.success) {
+  console.log(`Brazil: $${result.adjustedPrice} (${result.discount} discount)`);
+} else {
+  console.log(`Error: ${result.error}, using fallback: $${result.fallbackPrice}`);
+}
+```
+
+<Tip>
+Always handle the case where `ppp()` returns `null` for invalid country codes. Use the base price as a fallback to ensure your application never breaks.
+</Tip>

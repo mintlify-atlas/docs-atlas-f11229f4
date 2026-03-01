@@ -1,0 +1,97 @@
+---
+title: Introduction
+description: Calculate Purchasing Power Parity adjusted fair prices in USD. Simple, lightweight, and dependency-free.
+---
+
+# PPP (Purchasing Power Parity)
+
+A simple, lightweight, and dependency-free NPM package to calculate **Purchasing Power Parity (PPP)** adjusted fair prices in USD.
+
+This package allows you to calculate what a "fair" price would be in different countries, based on the **Price Level Ratio of PPP conversion factor to market exchange rate** from the World Bank.
+
+## Why Parity Pricing?
+
+Charging the same USD price globally ignores the vast differences in purchasing power:
+
+- **$10** in the US is a cheap lunch
+- **$10** in a developing nation might be a day's wage
+
+By adjusting your pricing based on PPP, you make your product affordable to the rest of the world, potentially increasing your total revenue by unlocking new markets.
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Get started by installing the package via npm, yarn, or pnpm
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Calculate your first PPP-adjusted price in minutes
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/ppp-function">
+    Explore the full API documentation and parameters
+  </Card>
+  <Card title="Examples" icon="lightbulb" href="/guides/use-cases">
+    See real-world use cases and implementation patterns
+  </Card>
+</CardGroup>
+
+## Key Features
+
+<CardGroup cols={3}>
+  <Card title="Zero Dependencies" icon="feather">
+    Lightweight package with no runtime dependencies for your application
+  </Card>
+  <Card title="World Bank Data" icon="globe">
+    Uses official Price Level Ratio data from World Bank indicator PA.NUS.PPPC.RF
+  </Card>
+  <Card title="Flexible Rounding" icon="calculator">
+    Choose from precision, currency, or marketing-friendly rounding strategies
+  </Card>
+  <Card title="TypeScript Support" icon="code">
+    Fully typed with TypeScript definitions included
+  </Card>
+  <Card title="ISO Country Codes" icon="flag">
+    Supports both 2-letter and 3-letter country codes
+  </Card>
+  <Card title="Smoothing Control" icon="sliders">
+    Adjust the discount level from raw PPP to original pricing
+  </Card>
+</CardGroup>
+
+## Quick Example
+
+Calculate a fair price for a $10 product in Sri Lanka:
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+// Default smoothing (0.2), no rounding
+console.log(ppp(10, 'LK')); 
+// Output: 4.3108...
+
+// With currency rounding (2 decimal places)
+console.log(ppp(10, 'LK', 0.2, 'currency')); 
+// Output: 4.31
+
+// With pretty rounding (marketing-friendly)
+console.log(ppp(10, 'LK', 0.2, 'pretty')); 
+// Output: 4.49
+```
+
+<Info>
+The package uses the World Bank's Price Level Ratio (indicator: `PA.NUS.PPPC.RF`) to determine fair pricing across 200+ countries.
+</Info>
+
+## How It Works
+
+The library calculates adjusted prices using the formula:
+
+```
+Fair_Price_USD = Original_USD_Price × (Ratio + (1 - Ratio) × Smoothing)
+```
+
+Where:
+- **Ratio**: The Price Level Ratio for the country (~0.29 for Sri Lanka, ~1.0 for USA)
+- **Smoothing**: A value between 0 and 1 to control the discount level (default: 0.2)
+
+<Tip>
+Start with the default smoothing of 0.2 for a balanced discount, then adjust based on your market testing.
+</Tip>

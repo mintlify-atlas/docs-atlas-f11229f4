@@ -1,80 +1,181 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get up and running with PPP in minutes with real-world examples
 ---
 
-## Get started in three steps
+Get started with PPP pricing in just a few minutes. This guide will walk you through your first PPP calculation and show you practical examples.
 
-Get your documentation site running locally and make your first customization.
+## Your first PPP calculation
 
-### Step 1: Set up your local environment
+After [installing the package](/installation), import and use the `ppp` function:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+// Calculate a fair price for a $10 product in Sri Lanka
+const fairPrice = ppp(10, 'LK');
+console.log(fairPrice); // Output: 4.3108...
+```
+
+## Understanding the parameters
+
+The `ppp` function accepts four parameters to give you full control over pricing:
+
+<Steps>
+  <Step title="originalPrice (required)">
+    The base price in USD. This is typically your US market price.
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    ```javascript
+    const originalPrice = 10; // $10 USD
+    ```
+  </Step>
+  
+  <Step title="countryCode (required)">
+    ISO 2-letter or 3-letter country code. Case-insensitive.
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    ```javascript
+    ppp(10, 'LK');  // Sri Lanka (2-letter)
+    ppp(10, 'LKA'); // Sri Lanka (3-letter)
+    ppp(10, 'lk');  // Also works (case-insensitive)
+    ```
+  </Step>
+  
+  <Step title="smoothing (optional, default: 0.2)">
+    Controls discount aggressiveness. Range: 0 to 1.
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    - `0` = Maximum discount (raw PPP)
+    - `0.2` = Balanced (recommended default)
+    - `1` = No discount (original price)
+    
+    ```javascript
+    ppp(10, 'LK', 0);   // 2.87 - Aggressive discount
+    ppp(10, 'LK', 0.2); // 4.31 - Balanced
+    ppp(10, 'LK', 1);   // 10.00 - No discount
+    ```
+  </Step>
+  
+  <Step title="rounding (optional, default: 'none')">
+    How to format the final price. Options: `'none'`, `'currency'`, `'pretty'`.
+    
+    ```javascript
+    ppp(10, 'LK', 0.2, 'none');     // 4.3108... - Full precision
+    ppp(10, 'LK', 0.2, 'currency'); // 4.31 - Standard currency
+    ppp(10, 'LK', 0.2, 'pretty');   // 4.49 - Marketing friendly
+    ```
+  </Step>
+</Steps>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+## Rounding strategies
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+Choose the right rounding strategy for your use case:
 
-### Step 3: Go live
+<CodeGroup>
+```javascript none - Full Precision
+// Best for: Internal calculations, chaining with other math
+const price = ppp(10, 'LK', 0.2, 'none');
+console.log(price); // 4.310847...
+```
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+```javascript currency - Standard Formatting
+// Best for: Payment processing, invoices, receipts
+const price = ppp(10, 'LK', 0.2, 'currency');
+console.log(price); // 4.31
+```
+
+```javascript pretty - Marketing Friendly
+// Best for: Pricing pages, checkout displays, marketing
+const price = ppp(10, 'LK', 0.2, 'pretty');
+console.log(price); // 4.49 (ends in .49 or .99)
+```
+</CodeGroup>
+
+## Real-world example: SaaS pricing
+
+Here's how to implement PPP pricing for a SaaS product with multiple tiers:
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+// Your standard USD pricing tiers
+const pricingTiers = {
+  basic: 9,
+  pro: 29,
+  enterprise: 99
+};
+
+// User's country from IP geolocation or request headers
+const userCountry = 'IN'; // India
+
+// Calculate adjusted prices with pretty rounding for display
+const adjustedPricing = {
+  basic: ppp(pricingTiers.basic, userCountry, 0.2, 'pretty'),
+  pro: ppp(pricingTiers.pro, userCountry, 0.2, 'pretty'),
+  enterprise: ppp(pricingTiers.enterprise, userCountry, 0.2, 'pretty')
+};
+
+console.log(adjustedPricing);
+// Output:
+// {
+//   basic: 2.49,      // Instead of $9
+//   pro: 7.49,        // Instead of $29
+//   enterprise: 25    // Instead of $99
+// }
+```
+
+## Error handling
+
+The function returns `null` for invalid country codes and throws errors for invalid parameters:
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+// Invalid country code returns null
+const result = ppp(10, 'INVALID');
+console.log(result); // null
+
+// Invalid parameters throw errors
+try {
+  ppp(-10, 'US'); // Negative price
+} catch (error) {
+  console.error(error.message);
+  // "Original price must be a non-negative number."
+}
+
+try {
+  ppp(10, 'US', 2); // Smoothing out of range (0-1)
+} catch (error) {
+  console.error(error.message);
+  // "Smoothing must be a number between 0 and 1."
+}
+
+try {
+  ppp(10, 'US', 0.2, 'invalid'); // Invalid rounding strategy
+} catch (error) {
+  console.error(error.message);
+  // "Rounding must be one of: 'none', 'currency', 'pretty'."
+}
+```
+
+<Note>
+Always validate country codes and handle `null` returns gracefully in production code. Consider using a fallback to your standard pricing when PPP data is unavailable.
+</Note>
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Core Concepts" icon="book" href="/concepts/how-it-works">
+    Learn how PPP calculations work under the hood
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api/ppp-function">
+    Explore the complete API documentation
+  </Card>
+  
+  <Card title="Best Practices" icon="lightbulb" href="/guides/best-practices">
+    Optimize your PPP pricing strategy
+  </Card>
+  
+  <Card title="Use Cases" icon="rocket" href="/guides/use-cases">
+    See real-world implementation examples
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

@@ -1,0 +1,128 @@
+---
+title: Data Source
+description: Learn about the World Bank PPP data used in this package and how it's maintained
+---
+
+## Overview
+
+The PPP package uses official economic data from the World Bank to calculate fair, purchasing-power-adjusted prices across different countries. This ensures your pricing reflects real-world economic conditions rather than arbitrary conversions.
+
+## World Bank Indicator
+
+The package uses the **Price Level Ratio of PPP conversion factor (GDP) to market exchange rate** indicator.
+
+<Info>
+  **Indicator Code**: `PA.NUS.PPPC.RF`
+  
+  This indicator measures the ratio of purchasing power parity (PPP) conversion factor to market exchange rate. It shows how much a basket of goods that costs $1 in the United States would cost in another country.
+</Info>
+
+### What This Means
+
+The Price Level Ratio tells you the relative cost of living in each country compared to the United States:
+
+- **~0.29** (Sri Lanka) → Goods cost approximately 29% of US prices
+- **1.0** (United States) → Baseline reference point
+- **>1.0** (Switzerland ~1.08) → Goods are more expensive than in the US
+
+## Data Collection Process
+
+The package maintains up-to-date PPP data through an automated update script located at `scripts/update-data.js`.
+
+### How Data is Sourced
+
+1. **Downloads Excel file** from the World Bank API:
+   ```
+   https://api.worldbank.org/v2/country/all/indicator/PA.NUS.PPPC.RF?downloadformat=excel
+   ```
+
+2. **Processes the Excel data** using the XLSX library to extract country-specific ratios
+
+3. **Selects the most recent data** for each country by iterating through years in reverse order
+
+4. **Stores dual country codes** in `data.json`:
+   - 3-letter ISO codes (e.g., `LKA`)
+   - 2-letter ISO codes (e.g., `LK`)
+
+### Data Structure
+
+The processed data is stored in `data.json` as a simple key-value map:
+
+```json
+{
+  "LKA": 0.28885598326474304,
+  "LK": 0.28885598326474304,
+  "USA": 1,
+  "US": 1,
+  "CHE": 1.077727161298933,
+  "CH": 1.077727161298933
+}
+```
+
+Both 2-letter and 3-letter codes point to the same value, allowing flexible lookups regardless of which format you use.
+
+## Update Frequency
+
+<Note>
+  The World Bank typically updates PPP indicators **annually**. The data reflects economic conditions from the previous year.
+</Note>
+
+### When to Update
+
+You should update the package data:
+
+- **Annually** - When the World Bank releases new PPP data (usually mid-year)
+- **After major economic events** - Currency crises, significant inflation, or policy changes
+- **Before major pricing decisions** - Ensure you're working with current data
+
+### Running the Update Script
+
+To update the data yourself:
+
+```bash
+cd scripts
+node update-data.js
+```
+
+The script will:
+1. Download the latest Excel file from the World Bank
+2. Parse and process the data
+3. Update `data.json` with the most recent values
+4. Display a summary of countries processed
+
+## Data Coverage
+
+The package currently includes PPP ratios for **200+ countries and territories**, covering:
+
+- All major economies
+- Most developing nations
+- Many territories and island nations
+- Special administrative regions (Hong Kong, Macau)
+
+### Missing Countries
+
+If a country code is not found in the data, the `ppp()` function returns `null`. This can happen for:
+
+- Very small territories without economic data
+- Regions in conflict where data collection is impossible
+- Newly formed nations not yet in the World Bank database
+
+## Data Quality
+
+The World Bank collects this data through:
+
+- **International Comparison Program (ICP)** - Coordinated global price surveys
+- **National statistical offices** - Official government data
+- **Regional coordinators** - Ensure consistency across countries
+
+<Info>
+  The PPP conversion factors are calculated using detailed price data for hundreds of goods and services, weighted by consumption patterns in each country.
+</Info>
+
+## Learn More
+
+For detailed information about the World Bank's methodology:
+
+<Card title="World Bank Indicator Documentation" icon="link" href="https://data.worldbank.org/indicator/PA.NUS.PPPC.RF">
+  View official documentation, methodology, and historical data for the PA.NUS.PPPC.RF indicator
+</Card>

@@ -1,0 +1,230 @@
+---
+title: 'ppp.factor()'
+description: 'Get the raw Price Level Ratio for any country'
+---
+
+## Function Signature
+
+```typescript
+function factor(countryCode: string): number | null
+```
+
+## Description
+
+Retrieves the raw Price Level Ratio (PLR) for the given country code. This is the underlying PPP conversion factor from the World Bank data, representing how expensive a country is relative to the United States.
+
+The factor indicates the relative price level:
+- `1.0` = Same price level as the United States
+- `< 1.0` = Lower price level (goods/services are cheaper)
+- `> 1.0` = Higher price level (goods/services are more expensive)
+
+## Parameters
+
+<ParamField path="countryCode" type="string" required>
+  The ISO country code (2-letter or 3-letter). Case-insensitive.
+  
+  **Examples**: `"US"`, `"GB"`, `"IND"`, `"br"` (automatically converted to uppercase)
+  
+  Unlike the main `ppp()` function, this does not throw an error for invalid types—it returns `null` instead.
+</ParamField>
+
+## Return Value
+
+<ResponseField name="return" type="number | null">
+  The raw Price Level Ratio for the country.
+  
+  Returns `null` if:
+  - The country code is not found in the database
+  - The input is not a string
+</ResponseField>
+
+## What the Factor Represents
+
+The factor is the Price Level Ratio (PLR) from the World Bank's International Comparison Program. It represents the ratio of purchasing power parity (PPP) conversion factor to the market exchange rate.
+
+**Real Examples**:
+- **United States** (`US`): `1.0` (baseline)
+- **Switzerland** (`CH`): `~1.5` (50% more expensive than the US)
+- **United Kingdom** (`GB`): `~0.8` (20% cheaper than the US)
+- **India** (`IN`): `~0.24` (76% cheaper than the US)
+- **Brazil** (`BR`): `~0.51` (49% cheaper than the US)
+- **Nigeria** (`NG`): `~0.43` (57% cheaper than the US)
+
+## Examples
+
+<Tabs>
+  <Tab title="Basic Usage">
+    ```javascript
+    import ppp from 'ppp';
+
+    // Get factor for India
+    const indiaFactor = ppp.factor('IN');
+    console.log(indiaFactor); // 0.24 (approximate)
+
+    // Get factor for United States
+    const usFactor = ppp.factor('US');
+    console.log(usFactor); // 1.0
+
+    // Get factor for Switzerland (more expensive than US)
+    const switzerlandFactor = ppp.factor('CH');
+    console.log(switzerlandFactor); // 1.5 (approximate)
+    ```
+  </Tab>
+  
+  <Tab title="Case Insensitive">
+    ```javascript
+    import ppp from 'ppp';
+
+    // All of these work
+    console.log(ppp.factor('BR')); // 0.51
+    console.log(ppp.factor('br')); // 0.51
+    console.log(ppp.factor('BRA')); // 0.51 (if 3-letter code supported)
+    console.log(ppp.factor('bra')); // 0.51
+    ```
+  </Tab>
+  
+  <Tab title="Calculate Manual Discount">
+    ```javascript
+    import ppp from 'ppp';
+
+    const basePrice = 29;
+    const countryCode = 'IN';
+    
+    // Get the raw factor
+    const factor = ppp.factor(countryCode);
+    
+    if (factor !== null) {
+      // Calculate theoretical maximum discount
+      const maxDiscountPrice = basePrice * factor;
+      console.log(`Max discount: $${maxDiscountPrice}`); // $6.96
+      
+      // Calculate discount percentage
+      const discountPercent = (1 - factor) * 100;
+      console.log(`Discount: ${discountPercent}%`); // 76%
+      
+      // Apply custom smoothing
+      const smoothing = 0.3;
+      const adjustedFactor = factor + (1 - factor) * smoothing;
+      const customPrice = basePrice * adjustedFactor;
+      console.log(`Custom smoothing: $${customPrice}`); // $12.64
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Compare Countries">
+    ```javascript
+    import ppp from 'ppp';
+
+    const countries = ['US', 'GB', 'IN', 'BR', 'CH', 'NG'];
+    const basePrice = 100;
+
+    console.log('Price comparison for $100 product:\n');
+    
+    countries.forEach(code => {
+      const factor = ppp.factor(code);
+      if (factor !== null) {
+        const theoreticalPrice = basePrice * factor;
+        const difference = ((factor - 1) * 100).toFixed(1);
+        
+        console.log(`${code}: $${theoreticalPrice.toFixed(2)} (${difference > 0 ? '+' : ''}${difference}%)`);
+      }
+    });
+    
+    // Output:
+    // US: $100.00 (0.0%)
+    // GB: $80.00 (-20.0%)
+    // IN: $24.00 (-76.0%)
+    // BR: $51.00 (-49.0%)
+    // CH: $150.00 (+50.0%)
+    // NG: $43.00 (-57.0%)
+    ```
+  </Tab>
+  
+  <Tab title="Error Handling">
+    ```javascript
+    import ppp from 'ppp';
+
+    // Invalid country code returns null
+    const unknown = ppp.factor('INVALID');
+    console.log(unknown); // null
+
+    // Non-string input returns null (no error thrown)
+    const invalid = ppp.factor(123);
+    console.log(invalid); // null
+
+    // Safe to use in conditional logic
+    const factor = ppp.factor('XYZ');
+    if (factor === null) {
+      console.log('Country not found, using default pricing');
+    } else {
+      console.log(`Found factor: ${factor}`);
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Build Custom Logic">
+    ```javascript
+    import ppp from 'ppp';
+
+    function getDiscountTier(countryCode) {
+      const factor = ppp.factor(countryCode);
+      
+      if (factor === null) return 'standard';
+      
+      // Define discount tiers based on factor
+      if (factor >= 1.0) return 'premium'; // More expensive than US
+      if (factor >= 0.7) return 'standard'; // 0-30% cheaper
+      if (factor >= 0.4) return 'emerging'; // 30-60% cheaper
+      return 'developing'; // 60%+ cheaper
+    }
+
+    console.log(getDiscountTier('CH')); // 'premium'
+    console.log(getDiscountTier('GB')); // 'standard'
+    console.log(getDiscountTier('BR')); // 'emerging'
+    console.log(getDiscountTier('IN')); // 'developing'
+    console.log(getDiscountTier('UNKNOWN')); // 'standard'
+    ```
+  </Tab>
+</Tabs>
+
+## Use Cases
+
+### 1. Check if Country is Supported
+
+```javascript
+const countryCode = getUserCountry();
+const factor = ppp.factor(countryCode);
+
+if (factor === null) {
+  // Country not in database, use default pricing
+  displayPrice(defaultPrice);
+} else {
+  // Calculate adjusted price
+  displayPrice(ppp(defaultPrice, countryCode));
+}
+```
+
+### 2. Display Discount Information
+
+```javascript
+const factor = ppp.factor('IN');
+if (factor !== null) {
+  const savingsPercent = Math.round((1 - factor) * 100);
+  console.log(`Save ${savingsPercent}% with regional pricing!`);
+}
+```
+
+### 3. Build Custom Pricing Logic
+
+```javascript
+// Use the raw factor for completely custom calculations
+const factor = ppp.factor(userCountry);
+if (factor !== null && factor < 0.5) {
+  // Apply special student discount only in low-income countries
+  price = applyStudentDiscount(basePrice * factor);
+}
+```
+
+## Related
+
+- [ppp()](/api/ppp-function) - Calculate PPP-adjusted prices with smoothing and rounding

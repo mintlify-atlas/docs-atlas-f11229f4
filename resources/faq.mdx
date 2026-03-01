@@ -1,0 +1,323 @@
+---
+title: Frequently Asked Questions
+description: Common questions about using the PPP package for purchasing power parity pricing
+---
+
+## General Questions
+
+<AccordionGroup>
+  <Accordion title="How accurate are the PPP calculations?">
+    The calculations are based on official World Bank data (indicator `PA.NUS.PPPC.RF`), which is collected through the International Comparison Program involving detailed price surveys across hundreds of goods and services.
+    
+    However, accuracy depends on several factors:
+    
+    - **Data freshness**: World Bank updates annually, so data may be 6-12 months old
+    - **Product category**: PPP ratios reflect general purchasing power, not specific product categories
+    - **Regional variations**: A single ratio applies to the entire country, but costs vary by city/region
+    - **Smoothing factor**: The default 0.2 smoothing adds a normalization layer
+    
+    For most SaaS and digital products, the calculations provide a solid foundation for fair pricing, but you may want to adjust based on your specific market and product.
+  </Accordion>
+
+  <Accordion title="Why does the function return null?">
+    The `ppp()` function returns `null` in these specific cases:
+    
+    **1. Invalid country code**
+    
+    ```javascript
+    ppp(10, 'XX'); // Returns null - country code not in database
+    ppp(10, 'INVALID'); // Returns null
+    ```
+    
+    **2. Country not in World Bank data**
+    
+    Some very small territories or regions without economic data are not included in the World Bank's PPP database.
+    
+    **How to handle null returns:**
+    
+    ```javascript
+    const price = ppp(10, countryCode);
+    if (price === null) {
+      // Fall back to original price
+      return originalPrice;
+    }
+    return price;
+    ```
+    
+    Use `ppp.factor(countryCode)` to check if a country code exists before calculating prices.
+  </Accordion>
+
+  <Accordion title="What's the difference between 2-letter and 3-letter country codes?">
+    The package supports both **ISO 3166-1 alpha-2** (2-letter) and **alpha-3** (3-letter) country codes, and they work identically:
+    
+    ```javascript
+    ppp(10, 'LK');  // Sri Lanka - 2-letter code
+    ppp(10, 'LKA'); // Sri Lanka - 3-letter code
+    // Both return the same result: 4.3108...
+    ```
+    
+    Internally, both codes are stored in `data.json` pointing to the same PPP ratio. The lookup is case-insensitive, so `'lk'`, `'LK'`, `'Lk'` all work.
+    
+    Use whichever format is more convenient for your application - the package handles the conversion automatically.
+  </Accordion>
+
+  <Accordion title="How often should I update the data?">
+    The World Bank updates PPP indicators **annually**, typically releasing new data mid-year.
+    
+    **Recommended update schedule:**
+    
+    - **Annual updates**: Run the update script once per year (June-August)
+    - **After major economic events**: Currency crises, hyperinflation, or significant policy changes
+    - **Before pricing reviews**: Ensure you have current data when adjusting your pricing strategy
+    
+    **To update:**
+    
+    ```bash
+    cd scripts
+    node update-data.js
+    ```
+    
+    The data is relatively stable year-over-year for most countries, so quarterly updates are usually unnecessary unless there are major economic disruptions.
+  </Accordion>
+</AccordionGroup>
+
+## Technical Questions
+
+<AccordionGroup>
+  <Accordion title="Why use smoothing? What happens with smoothing = 0?">
+    Raw PPP prices (smoothing = 0) can be **too aggressive**, making prices so low they may not be sustainable for your business.
+    
+    **Example: $100 product in India**
+    
+    ```javascript
+    // Raw PPP (no smoothing)
+    ppp(100, 'IN', 0); // ~$24.15 - Very aggressive discount
+    
+    // Default smoothing (0.2)
+    ppp(100, 'IN', 0.2); // ~$39.32 - Balanced approach
+    
+    // No discount
+    ppp(100, 'IN', 1); // $100 - Original price
+    ```
+    
+    **The smoothing formula:**
+    
+    ```
+    Fair_Price = Original_Price × (Ratio + (1 - Ratio) × Smoothing)
+    ```
+    
+    - **Smoothing = 0**: Full PPP adjustment (maximum discount)
+    - **Smoothing = 0.2** (default): 80% of the discount
+    - **Smoothing = 1**: No adjustment (original price)
+    
+    The default 0.2 provides a fair discount that makes products accessible while maintaining business viability.
+  </Accordion>
+
+  <Accordion title="How does 'pretty' rounding work?">
+    The `'pretty'` rounding option creates marketing-friendly prices that look better to customers.
+    
+    **Rounding rules based on price range:**
+    
+    **Prices under $10** → End in .49 or .99
+    ```javascript
+    ppp(10, 'LK', 0.2, 'pretty'); // 4.49 (was 4.3108...)
+    // If decimal < 0.5 → ends in .49
+    // If decimal >= 0.5 → ends in .99
+    ```
+    
+    **Prices $10-$100** → Round to nearest integer
+    ```javascript
+    ppp(100, 'IN', 0.2, 'pretty'); // 39 (was 39.32...)
+    ```
+    
+    **Prices over $100** → Round to nearest 5
+    ```javascript
+    ppp(300, 'US', 0.2, 'pretty'); // 300 (rounds to 5s)
+    ppp(342, 'CH', 0, 'pretty');   // 345 (rounds 342→345)
+    ```
+    
+    This creates psychologically appealing prices like $4.99, $49, or $145 instead of $4.31, $48.73, or $147.22.
+  </Accordion>
+
+  <Accordion title="What happens if I pass invalid parameters?">
+    The package validates all inputs and throws descriptive errors:
+    
+    **Invalid price:**
+    ```javascript
+    ppp('10', 'US'); // Error: Original price must be a non-negative number
+    ppp(-5, 'US');   // Error: Original price must be a non-negative number
+    ```
+    
+    **Invalid country code type:**
+    ```javascript
+    ppp(10, 123);    // Error: Country code must be a string
+    ppp(10, null);   // Error: Country code must be a string
+    ```
+    
+    **Invalid smoothing:**
+    ```javascript
+    ppp(10, 'US', 1.5);   // Error: Smoothing must be a number between 0 and 1
+    ppp(10, 'US', -0.2);  // Error: Smoothing must be a number between 0 and 1
+    ```
+    
+    **Invalid rounding:**
+    ```javascript
+    ppp(10, 'US', 0.2, 'round'); // Error: Rounding must be one of: 'none', 'currency', 'pretty'
+    ```
+    
+    <Note>
+      Invalid **country codes** don't throw errors - they return `null` instead, allowing graceful fallback handling.
+    </Note>
+  </Accordion>
+
+  <Accordion title="Can I use this package in the browser?">
+    Yes! The package is **dependency-free for clients**, meaning it has zero runtime dependencies.
+    
+    The only dependencies (`axios`, `xlsx`, `country-code-lookup`) are used by the data update script (`scripts/update-data.js`), which runs server-side or during development.
+    
+    **For client-side usage:**
+    
+    ```javascript
+    import ppp from '@sachithrrra/ppp';
+    
+    // Works in browser without any additional dependencies
+    const price = ppp(29.99, userCountryCode);
+    ```
+    
+    The `data.json` file (~15KB) is bundled with the package, so the entire runtime footprint is minimal.
+  </Accordion>
+
+  <Accordion title="How do I handle countries with PPP ratio > 1?">
+    Countries with PPP ratios above 1.0 (like Switzerland, Iceland, or Bermuda) have **higher costs of living** than the United States.
+    
+    **Example:**
+    ```javascript
+    ppp(100, 'CH'); // Switzerland
+    // Returns: ~105.82 (goods are ~8% MORE expensive)
+    
+    ppp.factor('CH'); // Returns: 1.077727...
+    ```
+    
+    **What this means for pricing:**
+    
+    Technically, you could charge MORE in these countries since purchasing power is higher. However, most businesses choose to:
+    
+    1. **Keep the original price** (use smoothing = 1)
+    2. **Apply minimal adjustment** (the default smoothing of 0.2 already minimizes the increase)
+    3. **Cap prices at original** (custom logic)
+    
+    **Example: Capping at original price**
+    ```javascript
+    function pppWithCap(originalPrice, countryCode) {
+      const adjustedPrice = ppp(originalPrice, countryCode);
+      return Math.min(adjustedPrice, originalPrice);
+    }
+    ```
+    
+    This ensures you never charge more than your base price, only offer discounts for lower purchasing power countries.
+  </Accordion>
+</AccordionGroup>
+
+## Pricing Strategy Questions
+
+<AccordionGroup>
+  <Accordion title="Should I show different prices or apply discounts at checkout?">
+    Both approaches work, but they have different implications:
+    
+    **Display different prices (Localized Pricing):**
+    
+    Pros:
+    - Transparent - customers see fair prices upfront
+    - Better conversion - no sticker shock
+    - Builds trust in emerging markets
+    
+    Cons:
+    - May cause friction if users compare across regions
+    - Requires geolocation to detect country
+    
+    **Apply discount at checkout (Dynamic Discounts):**
+    
+    Pros:
+    - Everyone sees the same base price
+    - Discount feels like a special offer
+    - Easier to implement
+    
+    Cons:
+    - Less transparent
+    - Cart abandonment if no discount expected
+    
+    <Info>
+      Many successful SaaS companies use **display localized pricing** for new customers and **honor historical pricing** for existing customers to avoid confusion.
+    </Info>
+  </Accordion>
+
+  <Accordion title="How do I detect the user's country?">
+    The PPP package handles **calculation** only - you need to determine the country code separately.
+    
+    **Common approaches:**
+    
+    **1. IP Geolocation** (automatic)
+    ```javascript
+    // Using a geolocation service
+    const response = await fetch('https://ipapi.co/json/');
+    const data = await response.json();
+    const countryCode = data.country_code; // e.g., 'LK'
+    
+    const localPrice = ppp(basePrice, countryCode);
+    ```
+    
+    **2. User selection** (manual)
+    ```javascript
+    // Let users choose their country
+    <select onChange={(e) => setCountry(e.target.value)}>
+      <option value="US">United States</option>
+      <option value="LK">Sri Lanka</option>
+      {/* ... */}
+    </select>
+    ```
+    
+    **3. Billing address** (at checkout)
+    ```javascript
+    // Use the country from payment/billing info
+    const localPrice = ppp(basePrice, billingAddress.country);
+    ```
+    
+    <Note>
+      IP geolocation is convenient but can be inaccurate (VPNs, proxies). Consider combining methods or allowing manual override.
+    </Note>
+  </Accordion>
+
+  <Accordion title="What's a good smoothing value for SaaS products?">
+    The optimal smoothing depends on your business model and target market:
+    
+    **0.2 (Default)** - Balanced approach
+    - Good for most SaaS products
+    - Provides meaningful discounts without excessive losses
+    - Recommended starting point
+    
+    **0.1-0.15** - More aggressive
+    - Maximizes market penetration in emerging markets
+    - Use if customer acquisition is priority over immediate revenue
+    - Good for freemium products with upsell potential
+    
+    **0.3-0.4** - Conservative
+    - Smaller discounts, higher margins
+    - Use for premium products or niche markets
+    - Better for high-touch sales or enterprise products
+    
+    **A/B test approach:**
+    ```javascript
+    // Test different smoothing values
+    const smoothingVariants = {
+      aggressive: 0.1,
+      balanced: 0.2,
+      conservative: 0.3
+    };
+    
+    const testGroup = getTestGroup(userId);
+    const price = ppp(basePrice, country, smoothingVariants[testGroup]);
+    ```
+    
+    Track conversion rates and lifetime value across smoothing values to find your optimal balance.
+  </Accordion>
+</AccordionGroup>

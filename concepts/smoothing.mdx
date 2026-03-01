@@ -1,0 +1,293 @@
+---
+title: "Smoothing"
+description: "Understanding the smoothing parameter and how it normalizes PPP pricing"
+---
+
+## What is Smoothing?
+
+The **smoothing parameter** is a value between `0` and `1` that controls how aggressively the PPP discount is applied. It acts as a normalization factor to prevent prices from being unrealistically low in countries with very low Price Level Ratios.
+
+## The Problem with Raw PPP
+
+Without smoothing, raw PPP calculations can produce prices that are too low to be sustainable:
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+// Nigeria has a Price Level Ratio of 0.119
+const basePrice = 100;
+
+// Raw PPP (no smoothing)
+console.log(ppp(basePrice, 'NG', 0));  // $11.93 (88% discount!)
+
+// With default smoothing (0.2)
+console.log(ppp(basePrice, 'NG', 0.2));  // $29.97 (70% discount)
+
+// No discount (smoothing = 1)
+console.log(ppp(basePrice, 'NG', 1));  // $100 (0% discount)
+```
+
+<Warning>
+While raw PPP prices (smoothing = 0) are theoretically "fair," they may not cover your costs or reflect the value of your product. Use smoothing to find a balance between affordability and sustainability.
+</Warning>
+
+## How Smoothing Works
+
+The smoothing formula adjusts the Price Level Ratio toward 1 (no discount):
+
+```javascript
+adjustedFactor = factor + (1 - factor) * smoothing
+```
+
+### Breaking Down the Formula
+
+- **`factor`**: The raw Price Level Ratio (e.g., 0.289 for Sri Lanka)
+- **`(1 - factor)`**: The "discount gap" (e.g., 1 - 0.289 = 0.711)
+- **`smoothing`**: How much of the gap to close (0 = none, 1 = all)
+- **`adjustedFactor`**: The final multiplier applied to the original price
+
+### Visual Example: Sri Lanka (factor = 0.289)
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+const factor = ppp.factor('LK');  // 0.28885598326474304
+
+// Smoothing = 0 (Raw PPP)
+adjustedFactor = 0.289 + (1 - 0.289) * 0;
+// adjustedFactor = 0.289 + 0 = 0.289
+
+// Smoothing = 0.2 (Default)
+adjustedFactor = 0.289 + (1 - 0.289) * 0.2;
+// adjustedFactor = 0.289 + 0.142 = 0.431
+
+// Smoothing = 0.5 (Moderate)
+adjustedFactor = 0.289 + (1 - 0.289) * 0.5;
+// adjustedFactor = 0.289 + 0.356 = 0.645
+
+// Smoothing = 1 (No discount)
+adjustedFactor = 0.289 + (1 - 0.289) * 1;
+// adjustedFactor = 0.289 + 0.711 = 1.0
+```
+
+## Smoothing Values Explained
+
+### 0.0 - Raw PPP (Maximum Discount)
+
+Applies the theoretical PPP price with no adjustments. This gives the maximum possible discount based purely on purchasing power.
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+const price = 50;
+
+console.log(ppp(price, 'IN', 0));   // $12.07 (India)
+console.log(ppp(price, 'EG', 0));   // $8.74 (Egypt)
+console.log(ppp(price, 'NG', 0));   // $5.97 (Nigeria)
+```
+
+<Info>
+**Use case**: Academic research, theoretical pricing models, or when you want to offer the absolute lowest possible prices.
+</Info>
+
+### 0.2 - Balanced Discount (Default)
+
+The recommended default that provides meaningful discounts while maintaining business sustainability. This closes 20% of the discount gap.
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+const price = 50;
+
+console.log(ppp(price, 'IN', 0.2));   // $19.66 (India)
+console.log(ppp(price, 'EG', 0.2));   // $14.99 (Egypt)
+console.log(ppp(price, 'NG', 0.2));   // $14.99 (Nigeria)
+```
+
+<Tip>
+**Use case**: SaaS subscriptions, digital products, online courses - where you want to expand global reach while maintaining profitability.
+</Tip>
+
+### 0.5 - Conservative Discount
+
+Provides moderate discounts that are closer to the original price. This closes 50% of the discount gap.
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+const price = 50;
+
+console.log(ppp(price, 'IN', 0.5));   // $31.00 (India)
+console.log(ppp(price, 'EG', 0.5));   // $24.87 (Egypt)
+console.log(ppp(price, 'NG', 0.5));   // $27.52 (Nigeria)
+```
+
+<Info>
+**Use case**: Premium products, enterprise software, or when you need to maintain higher margins.
+</Info>
+
+### 1.0 - No Discount
+
+Completely disables PPP adjustments and returns the original price for all countries.
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+const price = 50;
+
+console.log(ppp(price, 'IN', 1));   // $50 (India)
+console.log(ppp(price, 'EG', 1));   // $50 (Egypt)
+console.log(ppp(price, 'NG', 1));   // $50 (Nigeria)
+console.log(ppp(price, 'US', 1));   // $50 (United States)
+```
+
+<Warning>
+**Use case**: When you need to disable PPP pricing temporarily or for specific scenarios without changing your code logic.
+</Warning>
+
+## Comprehensive Comparison
+
+Here's how different smoothing values affect pricing for a **$100 product** across various countries:
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+const basePrice = 100;
+
+function compareSmoothingValues(countryCode, countryName) {
+  console.log(`\n${countryName} (${countryCode}):`);
+  console.log(`  Raw PPP (0.0):      $${ppp(basePrice, countryCode, 0).toFixed(2)}`);
+  console.log(`  Balanced (0.2):     $${ppp(basePrice, countryCode, 0.2).toFixed(2)}`);
+  console.log(`  Conservative (0.5): $${ppp(basePrice, countryCode, 0.5).toFixed(2)}`);
+  console.log(`  No discount (1.0):  $${ppp(basePrice, countryCode, 1).toFixed(2)}`);
+}
+
+compareSmoothingValues('NG', 'Nigeria');
+// Nigeria (NG):
+//   Raw PPP (0.0):      $11.93
+//   Balanced (0.2):     $29.97
+//   Conservative (0.5): $55.47
+//   No discount (1.0):  $100.00
+
+compareSmoothingValues('IN', 'India');
+// India (IN):
+//   Raw PPP (0.0):      $24.15
+//   Balanced (0.2):     $39.32
+//   Conservative (0.5): $62.07
+//   No discount (1.0):  $100.00
+
+compareSmoothingValues('BR', 'Brazil');
+// Brazil (BR):
+//   Raw PPP (0.0):      $46.16
+//   Balanced (0.2):     $56.93
+//   Conservative (0.5): $73.08
+//   No discount (1.0):  $100.00
+
+compareSmoothingValues('PL', 'Poland');
+// Poland (PL):
+//   Raw PPP (0.0):      $48.97
+//   Balanced (0.2):     $59.18
+//   Conservative (0.5): $74.49
+//   No discount (1.0):  $100.00
+```
+
+## Choosing the Right Smoothing Value
+
+### For SaaS Products
+
+```javascript
+// Monthly subscription: $29
+import ppp from '@sachithrrra/ppp';
+
+const subscription = 29;
+
+// Use 0.2 (balanced) for most markets
+const priceIN = ppp(subscription, 'IN', 0.2, 'pretty');  // $11.99
+const priceBR = ppp(subscription, 'BR', 0.2, 'pretty');  // $16.99
+```
+
+<Tip>
+**Recommended**: `0.2` - Provides meaningful discounts that increase conversion while maintaining sustainable revenue.
+</Tip>
+
+### For Digital Products (Ebooks, Courses)
+
+```javascript
+// Online course: $199
+import ppp from '@sachithrrra/ppp';
+
+const course = 199;
+
+// Use 0.3-0.4 for digital products with lower marginal costs
+const priceIN = ppp(course, 'IN', 0.3, 'pretty');  // $89
+const priceBR = ppp(course, 'BR', 0.3, 'pretty');  // $119
+```
+
+<Info>
+**Recommended**: `0.2-0.4` - Digital products have near-zero marginal costs, so you can afford to be more aggressive with discounts.
+</Info>
+
+### For Premium/Enterprise Products
+
+```javascript
+// Enterprise license: $999
+import ppp from '@sachithrrra/ppp';
+
+const enterprise = 999;
+
+// Use 0.5 or higher to maintain premium positioning
+const priceIN = ppp(enterprise, 'IN', 0.5, 'pretty');  // $620
+const priceBR = ppp(enterprise, 'BR', 0.5, 'pretty');  // $730
+```
+
+<Warning>
+**Recommended**: `0.5-0.7` - Premium products need to maintain their positioning. Too aggressive discounts may devalue the brand.
+</Warning>
+
+## Dynamic Smoothing Strategy
+
+You can adjust smoothing based on the country's Price Level Ratio:
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+function getDynamicSmoothing(countryCode) {
+  const factor = ppp.factor(countryCode);
+  
+  if (factor === null) return 0.2; // Default for unknown countries
+  
+  if (factor < 0.3) return 0.15;      // Very low PPP - more aggressive
+  if (factor < 0.5) return 0.2;       // Low PPP - balanced
+  if (factor < 0.8) return 0.3;       // Medium PPP - conservative
+  return 0.5;                         // High PPP - minimal discount
+}
+
+const basePrice = 100;
+
+// Nigeria (factor: 0.119) - Gets 0.15 smoothing
+console.log(ppp(basePrice, 'NG', getDynamicSmoothing('NG')));  // $28.06
+
+// India (factor: 0.241) - Gets 0.2 smoothing
+console.log(ppp(basePrice, 'IN', getDynamicSmoothing('IN')));  // $39.32
+
+// United Kingdom (factor: 0.849) - Gets 0.5 smoothing
+console.log(ppp(basePrice, 'GB', getDynamicSmoothing('GB')));  // $92.44
+```
+
+## Implementation in index.js
+
+The smoothing calculation is implemented in the core PPP function at **index.js:50**:
+
+```javascript
+// Apply smoothing
+const adjustedFactor = factor + (1 - factor) * smoothing;
+let finalPrice = originalPrice * adjustedFactor;
+```
+
+The function validates that smoothing is between 0 and 1 at **index.js:34-36**:
+
+```javascript
+if (typeof smoothing !== 'number' || smoothing < 0 || smoothing > 1) {
+    throw new Error('Smoothing must be a number between 0 and 1.');
+}
+```

@@ -1,0 +1,313 @@
+---
+title: 'Use Cases'
+description: 'Real-world scenarios for implementing PPP pricing in your applications'
+---
+
+## Overview
+
+Purchasing Power Parity pricing helps you expand into global markets by adjusting prices based on local economic conditions. This guide demonstrates practical use cases and implementation patterns.
+
+## SaaS Product Pricing
+
+The most common use case is adjusting subscription prices for your SaaS product based on the user's location.
+
+### Basic Implementation
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+function calculateSubscriptionPrice(basePrice, userCountry) {
+  // Use default smoothing (0.2) for balanced discounts
+  const adjustedPrice = ppp(basePrice, userCountry, 0.2, 'currency');
+  
+  if (adjustedPrice === null) {
+    // Country not found, use original price
+    return basePrice;
+  }
+  
+  return adjustedPrice;
+}
+
+// Example: $29/month base price
+const priceForIndia = calculateSubscriptionPrice(29, 'IN');
+console.log(`India: $${priceForIndia}`); // ~$7.00
+
+const priceForBrazil = calculateSubscriptionPrice(29, 'BR');
+console.log(`Brazil: $${priceForBrazil}`); // ~$13.38
+```
+
+### Tiered Pricing Strategy
+
+Implement different smoothing factors for different subscription tiers:
+
+```javascript
+const PRICING_TIERS = {
+  basic: { usdPrice: 9, smoothing: 0.3 },
+  pro: { usdPrice: 29, smoothing: 0.2 },
+  enterprise: { usdPrice: 99, smoothing: 0.1 }
+};
+
+function getTieredPricing(tier, countryCode) {
+  const config = PRICING_TIERS[tier];
+  return ppp(config.usdPrice, countryCode, config.smoothing, 'pretty');
+}
+
+// More aggressive discounts for higher tiers
+const enterprisePriceIndia = getTieredPricing('enterprise', 'IN');
+console.log(`Enterprise in India: $${enterprisePriceIndia}`); // Deeper discount
+```
+
+<CardGroup cols={2}>
+  <Card title="Starter Plan" icon="rocket">
+    Use higher smoothing (0.3-0.4) to maintain revenue from entry-level customers
+  </Card>
+  <Card title="Enterprise Plan" icon="building">
+    Use lower smoothing (0.1-0.2) to make premium features accessible globally
+  </Card>
+</CardGroup>
+
+## E-commerce & Digital Products
+
+Adjust prices for digital downloads, courses, or one-time purchases.
+
+### Course Pricing Example
+
+```javascript
+function getCoursePrice(basePriceUSD, userLocation) {
+  // Use aggressive discounting for educational content
+  const localPrice = ppp(basePriceUSD, userLocation, 0.15, 'pretty');
+  
+  // Calculate savings to show customers
+  const savings = basePriceUSD - localPrice;
+  const savingsPercent = ((savings / basePriceUSD) * 100).toFixed(0);
+  
+  return {
+    originalPrice: basePriceUSD,
+    localPrice: localPrice || basePriceUSD,
+    savings: savings > 0 ? savings : 0,
+    savingsPercent: savings > 0 ? savingsPercent : 0
+  };
+}
+
+// $199 course
+const pricing = getCoursePrice(199, 'PK'); // Pakistan
+console.log(`Original: $${pricing.originalPrice}`);
+console.log(`Your Price: $${pricing.localPrice}`);
+console.log(`You Save: ${pricing.savingsPercent}%`);
+```
+
+### E-book Bundle Pricing
+
+```javascript
+const EBOOK_BUNDLE = [
+  { title: 'JavaScript Mastery', price: 29 },
+  { title: 'React Deep Dive', price: 39 },
+  { title: 'Node.js Patterns', price: 34 }
+];
+
+function calculateBundlePrice(books, countryCode) {
+  const totalUSD = books.reduce((sum, book) => sum + book.price, 0);
+  const adjustedTotal = ppp(totalUSD, countryCode, 0.2, 'pretty');
+  
+  return {
+    items: books.length,
+    originalTotal: totalUSD,
+    localTotal: adjustedTotal,
+    perBook: (adjustedTotal / books.length).toFixed(2)
+  };
+}
+
+const bundle = calculateBundlePrice(EBOOK_BUNDLE, 'EG'); // Egypt
+console.log(`${bundle.items} books for $${bundle.localTotal}`);
+```
+
+## API & Usage-Based Pricing
+
+Adjust API credits or usage-based pricing for developers in different regions.
+
+```javascript
+function calculateAPICredits(dollarAmount, countryCode) {
+  const adjustedPrice = ppp(dollarAmount, countryCode, 0.25, 'currency');
+  const creditsPerDollar = 1000; // 1000 API calls per $1
+  
+  return {
+    priceUSD: adjustedPrice,
+    credits: Math.floor(adjustedPrice * creditsPerDollar),
+    costPerCall: (adjustedPrice / (adjustedPrice * creditsPerDollar)).toFixed(6)
+  };
+}
+
+// $50 credit purchase
+const credits = calculateAPICredits(50, 'VN'); // Vietnam
+console.log(`$${credits.priceUSD} = ${credits.credits} API calls`);
+```
+
+## Freemium Conversion Optimization
+
+Use PPP pricing to increase conversion rates from free to paid tiers.
+
+```javascript
+function shouldShowPPPDiscount(countryCode) {
+  const factor = ppp.factor(countryCode);
+  
+  // Show discount banner if PPP factor < 0.5 (50% of US pricing power)
+  if (factor !== null && factor < 0.5) {
+    const basePrice = 19;
+    const discountedPrice = ppp(basePrice, countryCode, 0.2, 'pretty');
+    const savingsPercent = Math.round((1 - discountedPrice / basePrice) * 100);
+    
+    return {
+      showBanner: true,
+      message: `Special ${savingsPercent}% discount for your region!`,
+      originalPrice: basePrice,
+      discountedPrice: discountedPrice
+    };
+  }
+  
+  return { showBanner: false };
+}
+
+const banner = shouldShowPPPDiscount('BD'); // Bangladesh
+if (banner.showBanner) {
+  console.log(banner.message);
+  console.log(`Was $${banner.originalPrice}, now $${banner.discountedPrice}`);
+}
+```
+
+## Multi-Currency Display
+
+While PPP returns USD prices, you can combine it with currency conversion for local display.
+
+```javascript
+function getPricingDisplay(basePriceUSD, countryCode, exchangeRate, currencySymbol) {
+  const pppPriceUSD = ppp(basePriceUSD, countryCode, 0.2, 'currency');
+  const localCurrencyPrice = (pppPriceUSD * exchangeRate).toFixed(0);
+  
+  return {
+    usd: `$${pppPriceUSD} USD`,
+    local: `${currencySymbol}${localCurrencyPrice}`,
+    displayBoth: `${currencySymbol}${localCurrencyPrice} (~$${pppPriceUSD} USD)`
+  };
+}
+
+// Example: India with INR conversion
+const display = getPricingDisplay(29, 'IN', 83, '₹');
+console.log(display.displayBoth); // "₹581 (~$7.00 USD)"
+```
+
+## Non-Profit & Educational Pricing
+
+Provide maximum accessibility for educational and non-profit use cases.
+
+```javascript
+function getEducationalPrice(basePriceUSD, countryCode, isStudent = false) {
+  // More aggressive smoothing for education
+  let smoothing = 0.1;
+  
+  // Additional discount for students
+  if (isStudent) {
+    smoothing = 0.05;
+  }
+  
+  const adjustedPrice = ppp(basePriceUSD, countryCode, smoothing, 'pretty');
+  const studentDiscount = isStudent ? ' (Student)' : '';
+  
+  return {
+    price: adjustedPrice,
+    label: `Educational Price${studentDiscount}`,
+    factor: ppp.factor(countryCode)
+  };
+}
+
+const eduPricing = getEducationalPrice(99, 'NG', true); // Nigeria, student
+console.log(`${eduPricing.label}: $${eduPricing.price}`);
+```
+
+<Note>
+For educational use cases, consider using smoothing values between 0.05-0.15 to maximize global accessibility while maintaining sustainability.
+</Note>
+
+## A/B Testing Price Points
+
+Experiment with different smoothing values to optimize conversion and revenue.
+
+```javascript
+function runPricingExperiment(basePriceUSD, countryCode) {
+  const variants = {
+    control: basePriceUSD,
+    aggressive: ppp(basePriceUSD, countryCode, 0.1, 'pretty'),
+    balanced: ppp(basePriceUSD, countryCode, 0.2, 'pretty'),
+    conservative: ppp(basePriceUSD, countryCode, 0.4, 'pretty')
+  };
+  
+  // Randomly assign variant
+  const variantNames = Object.keys(variants);
+  const selectedVariant = variantNames[Math.floor(Math.random() * variantNames.length)];
+  
+  return {
+    variant: selectedVariant,
+    price: variants[selectedVariant],
+    allVariants: variants // For analytics tracking
+  };
+}
+
+const experiment = runPricingExperiment(49, 'ID'); // Indonesia
+console.log(`Showing ${experiment.variant}: $${experiment.price}`);
+```
+
+<Tip>
+Track conversion rates and revenue across different smoothing values to find the optimal balance for your specific product and market.
+</Tip>
+
+## Geographic Revenue Optimization
+
+Analyze which markets offer the best opportunities with PPP pricing.
+
+```javascript
+function analyzeMarketOpportunity(basePriceUSD, countryCodes) {
+  return countryCodes.map(code => {
+    const factor = ppp.factor(code);
+    const adjustedPrice = ppp(basePriceUSD, code, 0.2, 'currency');
+    const revenueMultiplier = 1 / (factor || 1); // Potential market size impact
+    
+    return {
+      country: code,
+      pppFactor: factor,
+      adjustedPrice: adjustedPrice,
+      discount: ((1 - adjustedPrice / basePriceUSD) * 100).toFixed(0) + '%',
+      opportunity: revenueMultiplier > 3 ? 'High' : revenueMultiplier > 2 ? 'Medium' : 'Low'
+    };
+  }).sort((a, b) => b.pppFactor - a.pppFactor);
+}
+
+const markets = analyzeMarketOpportunity(29, ['US', 'IN', 'BR', 'NG', 'CN']);
+markets.forEach(m => {
+  console.log(`${m.country}: $${m.adjustedPrice} (${m.discount} off) - ${m.opportunity} opportunity`);
+});
+```
+
+## Implementation Checklist
+
+<Accordion title="Server-Side Implementation">
+- Detect user location via IP geolocation (GeoIP2, CloudFlare, etc.)
+- Store country code in user session or database
+- Calculate prices server-side to prevent manipulation
+- Cache PPP calculations for performance
+- Log pricing decisions for analytics
+</Accordion>
+
+<Accordion title="Client-Side Display">
+- Show original and adjusted prices for transparency
+- Display savings percentage to increase conversions
+- Handle null returns gracefully (invalid country codes)
+- Consider currency conversion for local display
+- A/B test discount messaging and presentation
+</Accordion>
+
+<Accordion title="Business Considerations">
+- Set minimum price floors to ensure sustainability
+- Consider regional support costs and infrastructure
+- Monitor for VPN abuse and implement fraud detection
+- Review pricing strategy quarterly based on conversion data
+- Communicate value proposition clearly to users
+</Accordion>

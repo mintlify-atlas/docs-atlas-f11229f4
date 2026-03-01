@@ -1,0 +1,110 @@
+---
+title: Installation
+description: Install the PPP package using npm, yarn, or pnpm
+---
+
+# Installation
+
+The `@sachithrrra/ppp` package is available on NPM and can be installed using your preferred package manager.
+
+## Prerequisites
+
+<Info>
+This package is designed for Node.js environments and supports ES modules. Make sure your project is configured to use ES modules.
+</Info>
+
+- Node.js 14.0 or higher recommended
+- ES module support (`"type": "module"` in your package.json)
+
+## Package Managers
+
+Choose your preferred package manager to install the PPP package:
+
+<CodeGroup>
+
+```bash npm
+npm install @sachithrrra/ppp
+```
+
+```bash yarn
+yarn add @sachithrrra/ppp
+```
+
+```bash pnpm
+pnpm add @sachithrrra/ppp
+```
+
+</CodeGroup>
+
+## Package Information
+
+The package includes:
+
+- **Main module**: ES module export (`index.js`)
+- **TypeScript definitions**: Full type support included (`index.d.ts`)
+- **PPP data**: Pre-bundled World Bank Price Level Ratios for 200+ countries
+- **Zero runtime dependencies**: No additional packages required in production
+
+<Note>
+While the package has zero runtime dependencies, development dependencies are only used for data updates and testing. Your application bundle stays lightweight.
+</Note>
+
+## Verify Installation
+
+After installation, verify the package is working correctly:
+
+<Steps>
+  <Step title="Create a test file">
+    Create a new file called `test-ppp.js` in your project:
+    
+    ```javascript test-ppp.js
+    import ppp from '@sachithrrra/ppp';
+    
+    console.log(ppp(10, 'US'));
+    ```
+  </Step>
+  
+  <Step title="Run the test">
+    Execute the test file:
+    
+    ```bash
+    node test-ppp.js
+    ```
+  </Step>
+  
+  <Step title="Check the output">
+    You should see a number close to `10` (around 9.8-10.2), since the USA has a Price Level Ratio near 1.0.
+  </Step>
+</Steps>
+
+## TypeScript Setup
+
+If you're using TypeScript, the package includes full type definitions out of the box:
+
+```typescript
+import ppp, { RoundingStrategy } from '@sachithrrra/ppp';
+
+// TypeScript will validate your parameters
+const price: number | null = ppp(29.99, 'IN', 0.2, 'currency');
+
+// Type-safe rounding strategy
+const strategy: RoundingStrategy = 'pretty';
+const prettyPrice = ppp(49.99, 'BR', 0.3, strategy);
+```
+
+<Tip>
+No additional `@types` package is needed. Type definitions are included with the main package.
+</Tip>
+
+## Next Steps
+
+Now that you've installed the package, you're ready to start calculating PPP-adjusted prices:
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Learn how to calculate your first PPP-adjusted price
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/ppp-function">
+    Explore all available functions and parameters
+  </Card>
+</CardGroup>

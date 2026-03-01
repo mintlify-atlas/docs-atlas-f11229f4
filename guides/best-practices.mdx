@@ -1,0 +1,533 @@
+---
+title: 'Best Practices'
+description: 'Recommendations for implementing PPP pricing effectively and avoiding common pitfalls'
+---
+
+## Choosing the Right Smoothing Value
+
+The smoothing parameter (0-1) is your most important tool for balancing accessibility with revenue sustainability.
+
+### Understanding Smoothing
+
+The smoothing formula adjusts the raw PPP factor:
+```
+Adjusted Factor = PPP Factor + (1 - PPP Factor) × Smoothing
+```
+
+<CardGroup cols={3}>
+  <Card title="Smoothing = 0" icon="bolt">
+    **Maximum Discount**
+    
+    Raw PPP pricing. A $100 product in Nigeria (factor 0.119) becomes $11.90.
+    
+    Use for: Educational content, non-profits, maximum market penetration
+  </Card>
+  <Card title="Smoothing = 0.2" icon="balance-scale">
+    **Balanced (Default)**
+    
+    Recommended starting point. Same $100 product becomes $30.50 in Nigeria.
+    
+    Use for: Most SaaS products, digital goods, standard use cases
+  </Card>
+  <Card title="Smoothing = 0.5+" icon="shield">
+    **Conservative**
+    
+    Smaller discounts. $100 product becomes $56.00 at smoothing 0.5.
+    
+    Use for: Premium products, high support costs, established brands
+  </Card>
+</CardGroup>
+
+### Smoothing Strategy by Product Type
+
+```javascript
+const SMOOTHING_GUIDELINES = {
+  // Aggressive discounting - maximize access
+  educational: 0.05,        // Online courses, tutorials
+  openSource: 0.1,          // Developer tools, OSS support
+  nonprofit: 0.1,           // Charity/mission-driven products
+  
+  // Balanced approach - default for most cases
+  saasBasic: 0.2,          // Entry-level SaaS tiers
+  digitalProducts: 0.2,     // E-books, templates, assets
+  apiServices: 0.25,        // API access, cloud services
+  
+  // Conservative - protect margins
+  saasPremium: 0.3,        // High-touch enterprise products
+  consulting: 0.4,          // Services with high labor costs
+  luxury: 0.5               // Premium/luxury positioning
+};
+
+function getRecommendedSmoothing(productCategory) {
+  return SMOOTHING_GUIDELINES[productCategory] || 0.2;
+}
+```
+
+<Tip>
+Start with smoothing 0.2 and adjust based on conversion data. Track metrics for 2-4 weeks before making changes.
+</Tip>
+
+## Rounding Strategies
+
+The rounding parameter affects price presentation and psychology.
+
+### Rounding Comparison
+
+```javascript
+import ppp from '@sachithrrra/ppp';
+
+const basePrice = 29;
+const country = 'IN'; // India
+
+// None: Maximum precision
+const precise = ppp(basePrice, country, 0.2, 'none');
+console.log(precise); // 7.002466326370831
+
+// Currency: Standard 2 decimals
+const currency = ppp(basePrice, country, 0.2, 'currency');
+console.log(currency); // 7.00
+
+// Pretty: Marketing-friendly
+const pretty = ppp(basePrice, country, 0.2, 'pretty');
+console.log(pretty); // 7.49 (rounds to .49/.99 for prices < 10)
+```
+
+### When to Use Each Rounding Type
+
+<Accordion title="'none' - No Rounding">
+**Use when:**
+- Calculating intermediate values in complex formulas
+- You need to apply custom rounding logic
+- Building pricing calculators or analysis tools
+- Storing prices in database before display formatting
+
+**Example:**
+```javascript
+function calculateTotalWithTax(basePrice, country, taxRate) {
+  // Use 'none' for intermediate calculation
+  const pppPrice = ppp(basePrice, country, 0.2, 'none');
+  const withTax = pppPrice * (1 + taxRate);
+  
+  // Apply rounding only at the end
+  return Math.round(withTax * 100) / 100;
+}
+```
+</Accordion>
+
+<Accordion title="'currency' - Two Decimal Places">
+**Use when:**
+- Displaying standard USD prices
+- Financial/accounting applications requiring precision
+- B2B invoicing where exact amounts matter
+- Legal/compliance requires specific decimal places
+
+**Example:**
+```javascript
+function generateInvoice(items, country) {
+  const lineItems = items.map(item => ({
+    name: item.name,
+    quantity: item.quantity,
+    unitPrice: ppp(item.priceUSD, country, 0.2, 'currency'),
+    total: ppp(item.priceUSD * item.quantity, country, 0.2, 'currency')
+  }));
+  
+  return lineItems;
+}
+```
+</Accordion>
+
+<Accordion title="'pretty' - Marketing-Friendly Rounding">
+**Use when:**
+- Consumer-facing pricing pages
+- Marketing campaigns and promotional materials
+- Optimizing for psychological pricing
+- E-commerce product listings
+
+**How it works:**
+- Prices < $10: Rounds to .49 or .99 (e.g., $4.49, $7.99)
+- Prices $10-$100: Rounds to whole numbers (e.g., $43, $87)
+- Prices > $100: Rounds to nearest 5 (e.g., $130, $145)
+
+**Example:**
+```javascript
+function getPricingPageData(plans, country) {
+  return plans.map(plan => ({
+    name: plan.name,
+    displayPrice: ppp(plan.basePrice, country, 0.2, 'pretty'),
+    billing: 'per month',
+    appealing: true // .99 endings increase conversions
+  }));
+}
+```
+</Accordion>
+
+<Note>
+Research shows prices ending in .99 or .49 can increase conversion rates by 5-20% compared to round numbers in B2C contexts.
+</Note>
+
+## Handling Edge Cases
+
+### Invalid Country Codes
+
+Always handle the null return value when a country code isn't found:
+
+```javascript
+function getSafePrice(basePrice, countryCode) {
+  const adjustedPrice = ppp(basePrice, countryCode, 0.2, 'currency');
+  
+  // Return original price if country not found
+  if (adjustedPrice === null) {
+    console.warn(`Unknown country code: ${countryCode}`);
+    return basePrice;
+  }
+  
+  return adjustedPrice;
+}
+```
+
+### Setting Minimum Prices
+
+Prevent prices from dropping below your cost threshold:
+
+```javascript
+function calculatePriceWithFloor(basePrice, country, minimumPrice) {
+  const adjustedPrice = ppp(basePrice, country, 0.2, 'currency');
+  
+  // Ensure price doesn't go below minimum
+  if (adjustedPrice !== null && adjustedPrice < minimumPrice) {
+    return minimumPrice;
+  }
+  
+  return adjustedPrice || basePrice;
+}
+
+// Example: Never go below $5
+const price = calculatePriceWithFloor(29, 'AF', 5); // Afghanistan
+console.log(price); // Will be at least $5
+```
+
+### High-PPP Countries (More Expensive than US)
+
+Some countries have PPP factors > 1.0 (Switzerland, Bermuda, etc.):
+
+```javascript
+function handleHighPPPCountries(basePrice, country) {
+  const factor = ppp.factor(country);
+  const adjustedPrice = ppp(basePrice, country, 0.2, 'currency');
+  
+  if (factor > 1.0) {
+    // Goods are more expensive than in the US
+    console.log(`Premium market detected: ${country}`);
+    
+    // Option 1: Keep base price (don't increase)
+    return basePrice;
+    
+    // Option 2: Apply the increase
+    // return adjustedPrice;
+  }
+  
+  return adjustedPrice;
+}
+
+// Switzerland (factor ~1.078)
+const price = handleHighPPPCountries(29, 'CH');
+```
+
+<Tip>
+For countries with PPP factor > 1.0, consider keeping your base price rather than increasing it. Most businesses don't charge premium markets more.
+</Tip>
+
+### Detecting VPN/Proxy Usage
+
+Prevent abuse by implementing basic fraud detection:
+
+```javascript
+function validateCountryCode(detectedCountry, userClaimedCountry, ipData) {
+  // Check if detected country matches user profile
+  if (detectedCountry !== userClaimedCountry) {
+    return {
+      valid: false,
+      reason: 'Country mismatch',
+      usePrice: 'base' // Use base price for suspected VPN
+    };
+  }
+  
+  // Check for known VPN/proxy indicators
+  if (ipData.isVPN || ipData.isProxy || ipData.isTor) {
+    return {
+      valid: false,
+      reason: 'VPN/Proxy detected',
+      usePrice: 'base'
+    };
+  }
+  
+  // Check for suspicious patterns (frequent country changes)
+  if (ipData.countryChangesLast30Days > 3) {
+    return {
+      valid: false,
+      reason: 'Suspicious activity',
+      usePrice: 'base'
+    };
+  }
+  
+  return { valid: true, usePrice: 'ppp' };
+}
+```
+
+## Performance Optimization
+
+### Caching PPP Calculations
+
+```javascript
+class PPPPriceCache {
+  constructor() {
+    this.cache = new Map();
+  }
+  
+  getCacheKey(price, country, smoothing, rounding) {
+    return `${price}-${country}-${smoothing}-${rounding}`;
+  }
+  
+  getPrice(price, country, smoothing = 0.2, rounding = 'currency') {
+    const key = this.getCacheKey(price, country, smoothing, rounding);
+    
+    if (this.cache.has(key)) {
+      return this.cache.get(key);
+    }
+    
+    const calculatedPrice = ppp(price, country, smoothing, rounding);
+    this.cache.set(key, calculatedPrice);
+    
+    return calculatedPrice;
+  }
+  
+  clear() {
+    this.cache.clear();
+  }
+}
+
+const priceCache = new PPPPriceCache();
+
+// First call calculates
+const price1 = priceCache.getPrice(29, 'BR', 0.2, 'pretty');
+
+// Subsequent calls use cache
+const price2 = priceCache.getPrice(29, 'BR', 0.2, 'pretty'); // Instant
+```
+
+### Pre-calculating Common Prices
+
+```javascript
+function precalculatePriceMatrix(basePrice, countries, smoothings) {
+  const matrix = {};
+  
+  countries.forEach(country => {
+    matrix[country] = {};
+    smoothings.forEach(smoothing => {
+      matrix[country][smoothing] = ppp(basePrice, country, smoothing, 'pretty');
+    });
+  });
+  
+  return matrix;
+}
+
+// Pre-calculate at server startup
+const COMMON_COUNTRIES = ['US', 'IN', 'BR', 'CN', 'NG', 'DE', 'GB'];
+const COMMON_SMOOTHINGS = [0.1, 0.2, 0.3];
+const priceMatrix = precalculatePriceMatrix(29, COMMON_COUNTRIES, COMMON_SMOOTHINGS);
+
+// Instant lookups
+const indiaPrice = priceMatrix['IN'][0.2];
+```
+
+## Testing and Validation
+
+### Unit Testing Price Calculations
+
+```javascript
+function testPPPImplementation() {
+  const tests = [
+    {
+      name: 'US baseline',
+      price: 100,
+      country: 'US',
+      expected: 100
+    },
+    {
+      name: 'India default smoothing',
+      price: 100,
+      country: 'IN',
+      expectedRange: [30, 35] // Factor ~0.241, smoothing 0.2
+    },
+    {
+      name: 'Invalid country returns null',
+      price: 100,
+      country: 'INVALID',
+      expected: null
+    },
+    {
+      name: 'Pretty rounding creates .99 prices',
+      price: 10,
+      country: 'IN',
+      rounding: 'pretty',
+      expectedEnding: ['.49', '.99']
+    }
+  ];
+  
+  tests.forEach(test => {
+    const result = ppp(
+      test.price,
+      test.country,
+      0.2,
+      test.rounding || 'none'
+    );
+    
+    console.log(`Test: ${test.name}`);
+    console.log(`Result: ${result}`);
+    console.log(`Pass: ${validateTest(result, test)}`);
+  });
+}
+```
+
+### A/B Testing Framework
+
+```javascript
+function assignPricingExperiment(userId, country) {
+  // Only run experiments in countries with PPP factor < 0.5
+  const factor = ppp.factor(country);
+  if (factor === null || factor >= 0.5) {
+    return { group: 'control', smoothing: 0.2 };
+  }
+  
+  // Hash user ID to consistently assign to group
+  const hash = simpleHash(userId);
+  const variants = [
+    { group: 'control', smoothing: 0.2, weight: 0.4 },
+    { group: 'aggressive', smoothing: 0.1, weight: 0.3 },
+    { group: 'conservative', smoothing: 0.3, weight: 0.3 }
+  ];
+  
+  // Weighted random assignment
+  let cumulative = 0;
+  const random = (hash % 100) / 100;
+  
+  for (const variant of variants) {
+    cumulative += variant.weight;
+    if (random < cumulative) {
+      return variant;
+    }
+  }
+  
+  return variants[0]; // Fallback
+}
+
+function simpleHash(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
+}
+```
+
+## Security Considerations
+
+<CardGroup cols={2}>
+  <Card title="Server-Side Calculation" icon="server">
+    Always calculate prices on the server. Never trust client-side price calculations as they can be manipulated.
+  </Card>
+  <Card title="Rate Limiting" icon="clock">
+    Implement rate limiting on pricing endpoints to prevent abuse and scraping of your pricing strategy.
+  </Card>
+  <Card title="Audit Logging" icon="file-lines">
+    Log all price calculations with user ID, IP, detected country, and final price for fraud analysis.
+  </Card>
+  <Card title="Country Verification" icon="shield-check">
+    Use multiple geolocation sources and verify consistency. Flag suspicious patterns for manual review.
+  </Card>
+</CardGroup>
+
+### Secure Implementation Example
+
+```javascript
+// Server-side endpoint
+app.post('/api/pricing', async (req, res) => {
+  const { productId, userId } = req.body;
+  const ipAddress = req.ip;
+  
+  // Detect country from IP (server-side only)
+  const geoData = await detectCountry(ipAddress);
+  
+  // Validate country detection
+  if (!geoData.confidence || geoData.confidence < 0.8) {
+    // Low confidence, use base price
+    return res.json({ price: BASE_PRICES[productId], currency: 'USD' });
+  }
+  
+  // Calculate PPP price
+  const basePrice = BASE_PRICES[productId];
+  const adjustedPrice = ppp(basePrice, geoData.country, 0.2, 'pretty');
+  
+  // Audit log
+  await logPriceCalculation({
+    userId,
+    productId,
+    ipAddress,
+    detectedCountry: geoData.country,
+    basePrice,
+    adjustedPrice,
+    timestamp: new Date()
+  });
+  
+  res.json({
+    price: adjustedPrice || basePrice,
+    currency: 'USD',
+    country: geoData.country
+  });
+});
+```
+
+<Warning>
+Never expose smoothing factors, PPP factors, or pricing logic in client-side code. This information can be used to game your pricing system.
+</Warning>
+
+## Monitoring and Analytics
+
+Track these metrics to optimize your PPP pricing strategy:
+
+```javascript
+const TRACKING_METRICS = {
+  // Conversion metrics
+  conversionRate: 'By country and smoothing value',
+  revenuePerUser: 'Compare PPP vs base pricing',
+  lifetimeValue: 'Long-term revenue by region',
+  
+  // Pricing metrics  
+  averageDiscount: 'By country and product',
+  priceFloorHits: 'How often minimum price is used',
+  nullReturns: 'Invalid country codes',
+  
+  // Fraud metrics
+  vpnDetections: 'Suspected proxy/VPN usage',
+  countryChanges: 'Users changing countries',
+  pricingAnomalies: 'Unusual pricing patterns'
+};
+
+function trackPricingEvent(eventType, data) {
+  // Send to analytics platform
+  analytics.track(eventType, {
+    country: data.country,
+    basePrice: data.basePrice,
+    adjustedPrice: data.adjustedPrice,
+    discount: ((1 - data.adjustedPrice / data.basePrice) * 100).toFixed(0),
+    smoothing: data.smoothing,
+    rounding: data.rounding,
+    timestamp: Date.now()
+  });
+}
+```
+
+<Tip>
+Review your PPP pricing performance monthly. Look for countries with high traffic but low conversion - these are opportunities to adjust smoothing values.
+</Tip>
