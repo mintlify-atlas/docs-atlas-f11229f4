@@ -55,7 +55,7 @@ The factor is the Price Level Ratio (PLR) from the World Bank's International Co
 <Tabs>
   <Tab title="Basic Usage">
     ```javascript
-    import ppp from 'ppp';
+    import ppp from '@sachithrrra/ppp';
 
     // Get factor for India
     const indiaFactor = ppp.factor('IN');
@@ -73,7 +73,7 @@ The factor is the Price Level Ratio (PLR) from the World Bank's International Co
   
   <Tab title="Case Insensitive">
     ```javascript
-    import ppp from 'ppp';
+    import ppp from '@sachithrrra/ppp';
 
     // All of these work
     console.log(ppp.factor('BR')); // 0.51
@@ -85,7 +85,7 @@ The factor is the Price Level Ratio (PLR) from the World Bank's International Co
   
   <Tab title="Calculate Manual Discount">
     ```javascript
-    import ppp from 'ppp';
+    import ppp from '@sachithrrra/ppp';
 
     const basePrice = 29;
     const countryCode = 'IN';
@@ -113,7 +113,7 @@ The factor is the Price Level Ratio (PLR) from the World Bank's International Co
   
   <Tab title="Compare Countries">
     ```javascript
-    import ppp from 'ppp';
+    import ppp from '@sachithrrra/ppp';
 
     const countries = ['US', 'GB', 'IN', 'BR', 'CH', 'NG'];
     const basePrice = 100;
@@ -142,7 +142,7 @@ The factor is the Price Level Ratio (PLR) from the World Bank's International Co
   
   <Tab title="Error Handling">
     ```javascript
-    import ppp from 'ppp';
+    import ppp from '@sachithrrra/ppp';
 
     // Invalid country code returns null
     const unknown = ppp.factor('INVALID');
@@ -164,7 +164,7 @@ The factor is the Price Level Ratio (PLR) from the World Bank's International Co
   
   <Tab title="Build Custom Logic">
     ```javascript
-    import ppp from 'ppp';
+    import ppp from '@sachithrrra/ppp';
 
     function getDiscountTier(countryCode) {
       const factor = ppp.factor(countryCode);

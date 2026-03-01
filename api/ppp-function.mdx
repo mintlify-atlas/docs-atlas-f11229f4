@@ -83,7 +83,7 @@ Where `factor` is the country's Price Level Ratio from the World Bank data.
 <Tabs>
   <Tab title="Basic Usage">
     ```javascript
-    import ppp from 'ppp';
+    import ppp from '@sachithrrra/ppp';
 
     // $29 product for India with default smoothing
     const price = ppp(29, 'IN');
@@ -97,7 +97,7 @@ Where `factor` is the country's Price Level Ratio from the World Bank data.
   
   <Tab title="Currency Rounding">
     ```javascript
-    import ppp from 'ppp';
+    import ppp from '@sachithrrra/ppp';
 
     // Round to 2 decimal places for payment processing
     const price = ppp(29, 'IN', 0.2, 'currency');
@@ -110,7 +110,7 @@ Where `factor` is the country's Price Level Ratio from the World Bank data.
   
   <Tab title="Pretty Rounding">
     ```javascript
-    import ppp from 'ppp';
+    import ppp from '@sachithrrra/ppp';
 
     // Marketing-friendly pricing
     const lowPrice = ppp(9, 'IN', 0.2, 'pretty');
@@ -126,7 +126,7 @@ Where `factor` is the country's Price Level Ratio from the World Bank data.
   
   <Tab title="Smoothing Variations">
     ```javascript
-    import ppp from 'ppp';
+    import ppp from '@sachithrrra/ppp';
 
     const basePrice = 29;
     const country = 'IN';
@@ -151,7 +151,7 @@ Where `factor` is the country's Price Level Ratio from the World Bank data.
   
   <Tab title="Error Handling">
     ```javascript
-    import ppp from 'ppp';
+    import ppp from '@sachithrrra/ppp';
 
     // Invalid country code returns null
     const unknown = ppp(29, 'INVALID');
