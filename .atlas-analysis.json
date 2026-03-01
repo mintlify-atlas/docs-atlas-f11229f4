@@ -1,0 +1,64 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "PPP",
+  "projectDescription": "Calculate Purchasing Power Parity adjusted fair prices in USD for global SaaS pricing",
+  "theme": "almond",
+  "primaryColor": "#2563eb",
+  "lightColor": "#3b82f6",
+  "darkColor": "#1e40af",
+  "navigation": {
+    "groups": [
+      {
+        "group": "Get Started",
+        "pages": [
+          "introduction",
+          "installation",
+          "quickstart"
+        ]
+      },
+      {
+        "group": "Core Concepts",
+        "pages": [
+          "concepts/how-it-works",
+          "concepts/smoothing",
+          "concepts/rounding"
+        ]
+      },
+      {
+        "group": "API Reference",
+        "pages": [
+          "api/ppp-function",
+          "api/factor-function"
+        ]
+      },
+      {
+        "group": "Guides",
+        "pages": [
+          "guides/use-cases",
+          "guides/best-practices",
+          "guides/country-codes"
+        ]
+      },
+      {
+        "group": "Resources",
+        "pages": [
+          "resources/data-source",
+          "resources/faq"
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Dependency-free NPM package for client-side use",
+    "PPP-adjusted pricing calculation using World Bank data",
+    "Flexible smoothing parameter (0-1) to normalize discounts",
+    "Three rounding strategies: none, currency, and marketing-friendly pretty",
+    "Support for both 2-letter and 3-letter ISO country codes",
+    "Direct access to raw Price Level Ratio factors",
+    "TypeScript type definitions included"
+  ],
+  "publicApiSurface": [
+    "ppp(originalPrice, countryCode, smoothing?, rounding?)",
+    "ppp.factor(countryCode)"
+  ]
+}
